@@ -24,7 +24,7 @@
   else
     echo 'Get latest dap_req_block ... '
     # Download new dgw_dap_req_block.csv if Tumbleweed access is possible and there is one from OIRA
-    if [[ `hostname` != 'cvlaptop.local' && `hostname` != 'cvhome.local' ]]
+    if [[ `hostname` != cvlaptop.local && `hostname` != cvhome.local ]]
     then
           #export LFTP_PASSWORD=`cat /Users/vickery/.lftpwd`
           /usr/local/bin/lftp -f ./getcunyrc
@@ -32,9 +32,10 @@
           then echo Download failed!
           else echo '... done.'
           fi
-    else echo "unable to access Tumbleweed from `hostname`."
+    else echo "Unable to access Tumbleweed from `hostname`"
     fi
   fi
+
     # Sanity check on file size. Should be within 10% of latest ... if there is a download
     if [[ -e $current_download_file ]]
     then

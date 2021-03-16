@@ -349,7 +349,7 @@ for institution in institutions.keys():
   num_records = len(institutions[institution].rows)
   suffix = '' if num_records == 1 else 's'
   if args.verbose:
-    print(f'Inserting {num_records:,} record{suffix} dated {load_date} '
+    print(f'Inserting {num_records:5,} record{suffix} dated {load_date} '
           f'from {file} for {institution}')
 
   # Insert the csv rows into the db after decrufting the requirement_text.
