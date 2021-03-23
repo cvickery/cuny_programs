@@ -40,6 +40,7 @@
     YC YRK01 | York College
 """
 
+import os
 import re
 import sys
 import csv
@@ -349,7 +350,7 @@ for institution in institutions.keys():
   num_records = len(institutions[institution].rows)
   suffix = '' if num_records == 1 else 's'
   if args.verbose:
-    print(f'Inserting {num_records:,} record{suffix} dated {load_date} '
+    print(f'Inserting {num_records:5,} record{suffix} dated {load_date} '
           f'from {file} for {institution}')
 
   # Insert the csv rows into the db after decrufting the requirement_text.
@@ -385,5 +386,8 @@ conn.close()
 
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
-  file.rename(f'/Users/vickery/CUNY_Programs/dgw_info/archives/'
-              f'{file.stem}_{load_date}{file.suffix}')
+  file = file.rename(f'/Users/vickery/CUNY_Programs/dgw_info/archives/'
+                     f'{file.stem}_{load_date}{file.suffix}')
+  # Be sure the file modification time matches the load_date
+mtime = datetime.fromisoformat(load_date).timestamp()
+os.utime(file, (mtime, mtime))
