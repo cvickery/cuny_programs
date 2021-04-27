@@ -42,7 +42,7 @@
     # Download new dgw_dap_req_block.csv if Tumbleweed access is possible and there is one from OIRA
     if [[ `hostname` != cvlaptop.local && `hostname` != cvhome.local ]]
     then
-          #export LFTP_PASSWORD=`cat /Users/vickery/.lftpwd`
+          export LFTP_PASSWORD=`cat /Users/vickery/.lftpwd`
           /usr/local/bin/lftp -f ./getcunyrc
           if [[ $? != 0 ]]
           then echo Download failed!
