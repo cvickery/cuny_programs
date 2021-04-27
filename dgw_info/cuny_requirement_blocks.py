@@ -276,6 +276,7 @@ for row in generator(file):
 
   # Integrity check: all rows for an institution must have the same load date.
   load_date = row.irdw_load_date[0:10]
+
   if institution not in institutions.keys():
     institutions[institution] = Institution._make([load_date, []])
   assert load_date == institutions[institution].load_date, \
