@@ -18,8 +18,24 @@
       latest_archive_file=${all[$n]}
     fi
 
-  # Command line option to skip download step
-  if [[ $# -gt 0 &&  ( "$1" == "--skip-download") || ( "$1" == "-sd" ) ]]
+  # Command line options to skip download step (-sd) or to ignore size changes (-is)
+  skip_downloads=False
+  ignore_size=False
+  while [[ $# > 0 ]]
+  do
+    case $1 in
+      '-sd')  skip_downloads=True
+                        ;;
+      '-is')  ignore_size=True
+                          ;;
+      *) echo Unrecognized option: $1
+         exit 1
+         ;;
+    esac
+       shift
+  done
+
+  if [[ ! $skip_downloads ]]
   then echo 'Skip download step'
   else
     echo 'Get latest dap_req_block ... '
@@ -37,7 +53,7 @@
   fi
 
     # Sanity check on file size. Should be within 10% of latest ... if there is a download
-    if [[ -e $current_download_file ]]
+    if [[ -e $current_download_file && ! $ignore_size ]]
     then
       size_download=`/usr/local/opt/coreutils/libexec/gnubin/stat -c %s $current_download_file`
       size_latest=`/usr/local/opt/coreutils/libexec/gnubin/stat -c %s $latest_archive_file`
