@@ -35,7 +35,7 @@
        shift
   done
 
-  if [[ $skip_downloads ]]
+  if [[ $skip_downloads == True ]]
   then echo 'Skip download step'
   else
     echo 'Get latest dap_req_block ... '
