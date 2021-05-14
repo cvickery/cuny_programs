@@ -25,11 +25,11 @@ with open(code_files[-1]) as code_file:
   reader = csv.reader(code_file)
   for line in reader:
     if cols is None:
-      cols = [col.lower().replace(' ', '_') for col in line]
+      cols = [col.lower().replace(' ', '').replace('/', '_') for col in line]
       Row = namedtuple('Row', cols)
     else:
       row = Row._make(line)
       cursor.execute('insert into cip_codes values (%s, %s)',
-                     (row.cipcode.strip('="'), row.ciptitle))
+                     (row.cipcode.strip('="'), row.title))
 conn.commit()
 conn.close()
