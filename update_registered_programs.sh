@@ -16,7 +16,7 @@ function restore_from_archive()
   fi
 }
 echo Start update_registered_programs.py at `date`
-export PYTHONPATH=/Users/vickery/Transfer_App/:/Users/vickery/dgw_processor
+export PYTHONPATH=/Users/vickery/Projects/transfer_app/:/Users/vickery/Projects/dgw_processor
 
 # Archive tables that might/will get clobbered.
 ./archive_tables.sh
