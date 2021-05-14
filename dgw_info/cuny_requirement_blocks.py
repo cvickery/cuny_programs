@@ -387,7 +387,7 @@ conn.close()
 
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
-  file = file.rename(f'/Users/vickery/CUNY_Programs/dgw_info/archives/'
+  file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_info/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
   # Be sure the file modification time matches the load_date
 mtime = datetime.fromisoformat(load_date).timestamp()
