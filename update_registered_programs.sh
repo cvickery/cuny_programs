@@ -15,7 +15,7 @@ function restore_from_archive()
       exit 1
   fi
 }
-echo Start update_registered_programs.py at `date`
+echo Start update_registered_programs.py on `hostname` at `date`
 export PYTHONPATH=/Users/vickery/Projects/transfer_app/:/Users/vickery/Projects/dgw_processor
 
 # Archive tables that might/will get clobbered.
@@ -63,11 +63,11 @@ previous_update_date=`pbpaste|tr -d ' '`
 if [[ $previous_update_date == '' ]]
 then echo -n "(Re-)create the registered_programs table ... "
      /usr/local/bin/psql -tqX cuny_curriculum -f registered_programs.sql
-     previous_update_date=`gdate -I`
+     previous_update_date=`date +%Y-%m-%d`
 fi
 
 # Generate/update the registered_programs table for all colleges
-update_date=`gdate -I`
+update_date=`date +%Y-%m-%d`
 for inst in bar bcc bkl bmc cty csi grd hos htr jjc kcc lag law leh mec ncc nyt qcc qns sps yrk
 do
   python3 registered_programs.py -vu $inst
