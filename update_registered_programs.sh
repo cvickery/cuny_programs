@@ -84,37 +84,10 @@ done
                         where table_name = 'registered_programs'"
 
 
-# Recreate the requirement_blocks table, using the latest available csv file from OIRA.
+# Recreate the requirement_blocks table
 (
   cd ./dgw_info
-  export latest='./downloads/dap_req_block.csv'
-  if [[ ! -e downloads/dgw_dap_req_block.csv ]]
-  then  # Find the latest file in the archives folder
-    shopt -s nullglob
-    all=(./archives/dgw_dap*)
-    n=$(( ${#all[@]} - 1 ))
-    if (( $n < 0 ))
-    then
-      latest=''
-      echo "ERROR: no dgw_dap_req_block.csv files found"
-      exit 1
-    else
-      latest=${all[$n]}
-      cp $latest ./downloads/dgw_dap_req_block.csv
-      echo "No new dap_req_block.csv in downloads. Using $latest."
-    fi
-  fi
-  ./cuny_requirement_blocks.py
+  ./update_requirement_blocks
 )
-
-# Generate the HTML and CSV table cols for registered programs (including links to the requirement
-# blocks)
-echo -n 'Generate HTML and CSV column values for registered programs ...'
-./generate_html.py
-if [[ $? != 0 ]]
-then echo 'FAILED!'
-     exit 1
-else echo 'done.'
-fi
 
 echo End update_registered_programs.py at `date`

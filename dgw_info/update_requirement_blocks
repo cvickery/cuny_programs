@@ -91,6 +91,18 @@
   SECONDS=0
 
   ./cuny_requirement_blocks.py -v
+
+  # Generate the HTML and CSV table cols for registered programs (including links to the requirement
+  # blocks)
+  echo -n 'Generate HTML and CSV column values for registered programs ... '
+  cd ..
+  ./generate_html.py
+  if [[ $? != 0 ]]
+  then echo 'FAILED!'
+       exit 1
+  else echo 'done.'
+  fi
+
   echo "End cuny_requirement_blocks.py after $SECONDS seconds."
 
 )
