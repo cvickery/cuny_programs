@@ -55,13 +55,6 @@ from pgconnection import PgConnection
 
 from dgw_filter import dgw_filter
 
-# Dict of known institution names
-conn = PgConnection()
-cursor = conn.cursor()
-cursor.execute('select code, name from cuny_institutions')
-institution_names = {row.code: row.name for row in cursor.fetchall()}
-conn.close()
-
 csv.field_size_limit(sys.maxsize)
 
 trans_dict = dict()
@@ -91,74 +84,21 @@ def decruft(block):
   return return_block
 
 
-# catalog_years()
-# -------------------------------------------------------------------------------------------------
-def catalog_years(period_start: str, period_stop: str) -> str:
-  """ Metadata for "bulletin years": first year, last year and whether undergraduate or graduate
-      period_start and period_end are supposed to look like YYYY-YYYY[UG], with the special value
-      of '99999999' for period_end indicating the current catalog year.
-      The earliest observed valid catalog year was 1960-1964, but note that it isn't a single
-      academic year.
-  """
-  is_undergraduate = 'U' in period_start
-  is_graduate = 'G' in period_start
-  if is_undergraduate and not is_graduate:
-    catalog_type = 'Undergraduate'
-  elif not is_undergraduate and is_graduate:
-    catalog_type = 'Graduate'
-  else:
-    catalog_type = 'Unknown'
-
-  try:
-    first = period_start.replace('-', '')[0:4]
-    if int(first) < 1960:
-      raise ValueError()
-  except ValueError:
-    first = 'Unknown-Start-Year'
-
-  if period_stop == '99999999':
-    last = 'Now'
-  else:
-    try:
-      last = period_stop.replace('-', '')[4:8]
-      if int(last) < 1960:
-        raise ValueError()
-    except ValueError:
-      last = 'Unknown-End-Year'
-  return (catalog_type, first, last, f'{first} through {last}')
-
-
 # to_html()
 # -------------------------------------------------------------------------------------------------
 def to_html(row, with_line_nums=False):
-  lines_pre = ''
-  if with_line_nums:
-    # Add line numbers to requirements text for development purposes.
-    num_lines = row.requirement_text.count('\n')
-    lines_pre = '<pre class="line-numbers">'
-    for line in range(num_lines):
-      lines_pre += f'{line + 1:03d}  \n'
-    lines_pre += '</pre>'
-
-  catalog_type, first_year, last_year, catalog_years_text = catalog_years(row.period_start,
-                                                                          row.period_stop)
-  institution_name = institution_names[row.institution]
+  """ Generate a HTML details element for the code of a Scribe Block.
+  """
+  # catalog_type, first_year, last_year, catalog_years_text = catalog_years(row.period_start,
+  #                                                                         row.period_stop)
+  # institution_name = institution_names[row.institution]
   requirement_text = dgw_filter(row.requirement_text)
   html = f"""
-
-<h1>{institution_name} {row.requirement_id}: <em>{row.title}</em></h1>
-<p>Requirements for {catalog_type} Catalog Years {catalog_years_text}
-</p>
-<section>
-  <h1 class="closer">Degreeworks Code</h1>
-  <div>
-    <hr>
-    <section class=with-numbers>
-      {lines_pre}
-      <pre>{requirement_text.replace('<', '&lt;')}</pre>
-    </section
-  </div>
-</section>
+<details>
+  <summary>Degreeworks Code (“<em>Scribe Block</em>”)</summary>
+  <hr>
+  <pre>{requirement_text.replace('<', '&lt;')}</pre>
+</details>
 """
 
   return html.replace('\t', ' ').replace("'", '’')
