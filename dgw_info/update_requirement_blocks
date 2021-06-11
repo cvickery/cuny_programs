@@ -92,8 +92,9 @@
 
   ./cuny_requirement_blocks.py -v
 
-  # Generate the HTML and CSV table cols for registered programs (including links to the requirement
-  # blocks)
+  # Generate the HTML and CSV table cols for registered programs.
+  # This is done here so the HTML can include links to the requirement web pages for displaying the
+  # blocks.
   echo -n 'Generate HTML and CSV column values for registered programs ... '
   cd ..
   ./generate_html.py
