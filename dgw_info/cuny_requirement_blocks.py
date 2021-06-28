@@ -95,7 +95,7 @@ def to_html(row, with_line_nums=False):
   requirement_text = dgw_filter(row.requirement_text)
   html = f"""
 <details>
-  <summary>Degreeworks Code (“<em>Scribe Block</em>”)</summary>
+  <summary><strong>Degree Works Code</strong> (<em>Scribe Block</em>)</summary>
   <hr>
   <pre>{requirement_text.replace('<', '&lt;')}</pre>
 </details>
