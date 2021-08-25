@@ -70,7 +70,7 @@ fi
 update_date=`date +%Y-%m-%d`
 for inst in bar bcc bkl bmc cty csi grd hos htr jjc kcc lag law leh mec ncc nyt qcc qns sps yrk
 do
-  python3 registered_programs.py -vu $inst
+  ./registered_programs.py -vu $inst
   if [[ $? != 0 ]]
   then  echo "Update FAILED for $inst"
          #  Restore from latest archive
@@ -85,9 +85,12 @@ done
 
 
 # Recreate the requirement_blocks table
-(
-  cd ./dgw_info
-  ./update_requirement_blocks
-)
+if [[ $NO_DGW != True ]]
+then
+  (
+    cd ./dgw_info
+    ./update_requirement_blocks
+  )
+fi
 
 echo End update_registered_programs.py at `date`
