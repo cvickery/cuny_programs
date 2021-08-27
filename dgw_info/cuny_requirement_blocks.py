@@ -224,56 +224,56 @@ for row in generator(file):
 
   institutions[institution].rows.append(row)
 
-# Recreate the requirement_blocks table
-cursor.execute("""drop table if exists requirement_blocks cascade;
-                  create table requirement_blocks (
-                  institution text,
-                  requirement_id text,
-                  block_type text,
-                  block_value text,
-                  title text,
-                  period_start text,
-                  period_stop text,
-                  school text,
-                  degree text,
-                  college text,
-                  major1 text,
-                  major2 text,
-                  concentration text,
-                  minor text,
-                  liberal_learning text,
-                  specialization text,
-                  program text,
-                  student_id text,
-                  requirement_text text,
-                  requirement_html text default 'Not Available',
-                  parse_tree jsonb default '{}'::jsonb,
-                  primary key (institution, requirement_id))""")
+# # Recreate the requirement_blocks table
+# cursor.execute("""drop table if exists requirement_blocks cascade;
+#                   create table requirement_blocks (
+#                   institution text,
+#                   requirement_id text,
+#                   block_type text,
+#                   block_value text,
+#                   title text,
+#                   period_start text,
+#                   period_stop text,
+#                   school text,
+#                   degree text,
+#                   college text,
+#                   major1 text,
+#                   major2 text,
+#                   concentration text,
+#                   minor text,
+#                   liberal_learning text,
+#                   specialization text,
+#                   program text,
+#                   student_id text,
+#                   requirement_text text,
+#                   requirement_html text default 'Not Available',
+#                   parse_tree jsonb default '{}'::jsonb,
+#                   primary key (institution, requirement_id))""")
 
-# Add the view, which omits the requirement_text, requirement_html, and object lists.
-cursor.execute("""
-drop view if exists view_requirement_blocks;
-create view view_requirement_blocks as (
-  select  institution,
-           requirement_id,
-           block_type,
-           block_value,
-           title,
-           period_start,
-           period_stop,
-           school,
-           degree,
-           college,
-           major1,
-           major2,
-           concentration,
-           minor,
-           liberal_learning,
-           specialization,
-           program
-  from requirement_blocks
-  order by institution, requirement_id, block_type, block_value, period_stop);
-""")
+# # Add the view, which omits the requirement_text, requirement_html, and object lists.
+# cursor.execute("""
+# drop view if exists view_requirement_blocks;
+# create view view_requirement_blocks as (
+#   select  institution,
+#            requirement_id,
+#            block_type,
+#            block_value,
+#            title,
+#            period_start,
+#            period_stop,
+#            school,
+#            degree,
+#            college,
+#            major1,
+#            major2,
+#            concentration,
+#            minor,
+#            liberal_learning,
+#            specialization,
+#            program
+#   from requirement_blocks
+#   order by institution, requirement_id, block_type, block_value, period_stop);
+# """)
 
 # Process the rows from the csv or xml file, institution by institution
 for institution in institutions.keys():
@@ -293,8 +293,9 @@ for institution in institutions.keys():
     print(f'Inserting {num_records:5,} record{suffix} dated {load_date} '
           f'from {file} for {institution}')
 
-  # Insert the csv rows into the db after decrufting the requirement_text.
+  # Insert new rows; update changed rows. Ignore other rows.
   for row in institutions[institution].rows:
+    decrufted = decruft(row.requirement_text)
     db_record = DB_Record._make([institution,
                                  row.requirement_id,
                                  row.block_type,
