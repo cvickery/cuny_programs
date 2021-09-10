@@ -46,9 +46,12 @@ import sys
 import csv
 import argparse
 
+from hashlib import md5
 from pathlib import Path
 from datetime import datetime, timezone
 from collections import namedtuple
+from types import SimpleNamespace
+
 from xml.etree.ElementTree import parse
 
 from pgconnection import PgConnection
@@ -120,10 +123,16 @@ def csv_generator(file):
         Row = namedtuple('Row', cols)
       else:
         try:
-          row = Row._make(line)
+          # Trim trailing whitespace from lines in the Scribe text; they were messing up checks for
+          # changes to the blocks.
+          row = Row._make(line)._asdict()
+          requirement_text = row['requirement_text']
+          row['requirement_text'] = '\n'.join([scribe_line.rstrip()
+                                               for scribe_line in requirement_text.split('\n')])
+          row = Row._make(row.values())
           yield row
         except TypeError as type_error:
-          print(f'{type_error}: |{line}|', file=sys.stderr)
+          sys.exit(f'{type_error}: |{line}|')
 
 
 # xml_generator()
@@ -177,7 +186,8 @@ db_cols = ['institution',
            'program',
            'student_id',
            'requirement_text',
-           'requirement_html']
+           'requirement_html',
+           'hexdigest']
 vals = '%s, ' * len(db_cols)
 vals = '(' + vals.strip(', ') + ')'
 
@@ -193,7 +203,7 @@ Institution = namedtuple('Institution', 'load_date rows')
 file = Path(args.file)
 if not file.exists():
   # Try the latest archived version
-  archives_dir = Path('/Users/vickery/CUNY_Programs/dgw_info/archives')
+  archives_dir = Path('/Users/vickery/Projects/CUNY_Programs/dgw_info/archives')
   archives = archives_dir.glob('dgw_dap_req_block*.csv')
   latest = None
   for archive in archives:
@@ -246,6 +256,7 @@ for row in generator(file):
 #                   program text,
 #                   student_id text,
 #                   requirement_text text,
+#                   md5_hash text,
 #                   requirement_html text default 'Not Available',
 #                   parse_tree jsonb default '{}'::jsonb,
 #                   primary key (institution, requirement_id))""")
@@ -277,6 +288,7 @@ for row in generator(file):
 
 # Process the rows from the csv or xml file, institution by institution
 for institution in institutions.keys():
+  print(institution, file=sys.stderr)
   load_date = institutions[institution].load_date
   # Desired date format: YYYY-MM-DD
   if re.match(r'^\d{4}-\d{2}-\d{2}$', load_date):
@@ -290,12 +302,35 @@ for institution in institutions.keys():
   num_records = len(institutions[institution].rows)
   suffix = '' if num_records == 1 else 's'
   if args.verbose:
-    print(f'Inserting {num_records:5,} record{suffix} dated {load_date} '
+    print(f'Examining {num_records:5,} record{suffix} dated {load_date} '
           f'from {file} for {institution}')
 
   # Insert new rows; update changed rows. Ignore other rows.
+  num_changed = 0
   for row in institutions[institution].rows:
     decrufted = decruft(row.requirement_text)
+    hexdigest = md5(decrufted.encode('utf-8')).hexdigest()
+    cursor.execute(f"""
+    select requirement_text, hexdigest from requirement_blocks
+     where institution = '{row.institution}'
+       and requirement_id = '{row.requirement_id}'
+       and period_stop ~* '9999'
+    """)
+    if cursor.rowcount == 0:
+      print(f'{row.institution} {row.requirement_id} is NEW')
+    else:
+      assert cursor.rowcount == 1
+      db_row = cursor.fetchone()
+      # if db_row.hexdigest == hexdigest:
+      #   print(f'{row.institution} {row.requirement_id} is NOT changed')
+      # else:
+      #   print(f'{row.institution} {row.requirement_id} IS changed')
+      #   num_changed += 1
+      #   with open(f'diffs/{row.institution}_{row.requirement_id}_new', 'w') as _new:
+      #     print(decrufted, file=_new)
+      #   with open(f'diffs/{row.institution}_{row.requirement_id}_old', 'w') as _old:
+      #     print(decruft(db_row.requirement_text), file=_old)
+
     db_record = DB_Record._make([institution,
                                  row.requirement_id,
                                  row.block_type,
@@ -315,13 +350,22 @@ for institution in institutions.keys():
                                  row.program,
                                  row.student_id,
                                  decruft(row.requirement_text),
-                                 to_html(row)])
+                                 to_html(row),
+                                 hexdigest])
 
     vals = ', '.join([f"'{val}'" for val in db_record])
-    cursor.execute(f'insert into requirement_blocks values ({vals})')
+    # cursor.execute(f'insert into requirement_blocks ({",".join(db_cols)}) values ({vals})')
+    cursor.execute(f"""
+    update requirement_blocks set requirement_text='{decruft(row.requirement_text)}',
+                                  requirement_html='{to_html(row)}',
+                                  hexdigest='{hexdigest}'
+     where institution = '{institution}'
+       and requirement_id = '{row.requirement_id}'
+    """)
 cursor.execute(f"""update updates
                       set update_date = '{load_date}'
                     where table_name = 'requirement_blocks'""")
+exit()
 conn.commit()
 conn.close()
 
