@@ -46,10 +46,10 @@ import sys
 import csv
 import argparse
 
-from hashlib import md5
 from pathlib import Path
 from datetime import datetime, timezone
 from collections import namedtuple
+from scribe_to_html import to_html
 from types import SimpleNamespace
 
 from xml.etree.ElementTree import parse
@@ -85,26 +85,6 @@ def decruft(block):
   return_block = re.sub(r'[Ee][Nn][Dd]\.(.|\n)*', 'END.\n', return_block)
 
   return return_block
-
-
-# to_html()
-# -------------------------------------------------------------------------------------------------
-def to_html(row, with_line_nums=False):
-  """ Generate a HTML details element for the code of a Scribe Block.
-  """
-  # catalog_type, first_year, last_year, catalog_years_text = catalog_years(row.period_start,
-  #                                                                         row.period_stop)
-  # institution_name = institution_names[row.institution]
-  requirement_text = dgw_filter(row.requirement_text)
-  html = f"""
-<details>
-  <summary><strong>Degree Works Code</strong> (<em>Scribe Block</em>)</summary>
-  <hr>
-  <pre>{requirement_text.replace('<', '&lt;')}</pre>
-</details>
-"""
-
-  return html.replace('\t', ' ').replace("'", '’')
 
 
 # csv_generator()
@@ -234,57 +214,38 @@ for row in generator(file):
 
   institutions[institution].rows.append(row)
 
-# # Recreate the requirement_blocks table
-# cursor.execute("""drop table if exists requirement_blocks cascade;
-#                   create table requirement_blocks (
-#                   institution text,
-#                   requirement_id text,
-#                   block_type text,
-#                   block_value text,
-#                   title text,
-#                   period_start text,
-#                   period_stop text,
-#                   school text,
-#                   degree text,
-#                   college text,
-#                   major1 text,
-#                   major2 text,
-#                   concentration text,
-#                   minor text,
-#                   liberal_learning text,
-#                   specialization text,
-#                   program text,
-#                   student_id text,
-#                   requirement_text text,
-#                   md5_hash text,
-#                   requirement_html text default 'Not Available',
-#                   parse_tree jsonb default '{}'::jsonb,
-#                   primary key (institution, requirement_id))""")
-
-# # Add the view, which omits the requirement_text, requirement_html, and object lists.
-# cursor.execute("""
-# drop view if exists view_requirement_blocks;
-# create view view_requirement_blocks as (
-#   select  institution,
-#            requirement_id,
-#            block_type,
-#            block_value,
-#            title,
-#            period_start,
-#            period_stop,
-#            school,
-#            degree,
-#            college,
-#            major1,
-#            major2,
-#            concentration,
-#            minor,
-#            liberal_learning,
-#            specialization,
-#            program
-#   from requirement_blocks
-#   order by institution, requirement_id, block_type, block_value, period_stop);
-# """)
+#  Schema for the table
+#    create table requirement_blocks (
+#    institution       text   not null,
+#    requirement_id    text   not null,
+#    block_type        text,
+#    block_value       text,
+#    title             text,
+#    period_start      text,
+#    period_stop       text,
+#    school            text,
+#    degree            text,
+#    college           text,
+#    major1            text,
+#    major2            text,
+#    concentration     text,
+#    minor             text,
+#    liberal_learning  text,
+#    specialization    text,
+#    program           text,
+#    parse_status      text,
+#    parse_date        date,
+#    parse_who         integer,
+#    parse_what        text,
+#    lock_version      text,
+#    requirement_text  text,
+#    load_date         date,
+#    -- Added Values
+#    requirement_html  text default 'Not Available'::text,
+#    parse_tree        jsonb default '{}'::jsonb,
+#    hexdigest         text,
+#
+#    PRIMARY KEY (institution, requirement_id))""")
 
 # Process the rows from the csv or xml file, institution by institution
 for institution in institutions.keys():
@@ -350,7 +311,7 @@ for institution in institutions.keys():
                                  row.program,
                                  row.student_id,
                                  decruft(row.requirement_text),
-                                 to_html(row),
+                                 to_html(row.requirement_text),
                                  hexdigest])
 
     vals = ', '.join([f"'{val}'" for val in db_record])
