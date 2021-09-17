@@ -19,9 +19,14 @@ create table new_requirement_blocks (
  liberal_learning  text,
  specialization    text,
  program           text,
- student_id        text,
+ parse_status      text,
+ parse_date        date,
+ parse_who         text,
+ parse_what        text,
+ lock_version      text,
  requirement_text  text,
- requirement_html  text default 'Not Available'::text,
+ -- Added Values
+ requirement_html  text,
  parse_tree        jsonb default '{}'::jsonb,
  hexdigest         text,
  PRIMARY KEY (institution, requirement_id));
