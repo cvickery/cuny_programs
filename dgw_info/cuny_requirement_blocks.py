@@ -274,15 +274,18 @@ for new_row in generator(file):
         If this is an exisitng block and it has changed, do update
         During development, if block exists, has not changed, but parse_date has changed, report it.
   """
-  action = Action()
-  if args.parse:
+  parse_error = ''
+  if args.parse and new_row.period_stop.startswith('9'):
     parse_tree = dgw_parser(new_row.institution, requirement_id=new_row.requirement_id,
                             update_db=False, timelimit = int(args.timelimit))
+    if 'error' in parse_tree.keys():
+      parse_error = parse_tree['error']
     do_update = True
   else:
     parse_tree = {}
   parse_tree_json = json.dumps(parse_tree)
 
+  action = Action()
   requirement_text = decruft(new_row.requirement_text)
   hexdigest = md5(requirement_text.encode('utf-8')).hexdigest()
   requirement_html = to_html(requirement_text)
