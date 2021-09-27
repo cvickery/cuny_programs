@@ -26,3 +26,4 @@ sendemail.py
 /archives/
 /dgw_info/update.log
 /update.log
+/dgw_info/__pycache__/
