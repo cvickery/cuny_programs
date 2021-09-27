@@ -44,11 +44,13 @@ import os
 import re
 import sys
 import csv
+import datetime
+import json
 import argparse
 
 from pathlib import Path
-from datetime import datetime, timezone
 from collections import namedtuple
+from hashlib import md5
 from scribe_to_html import to_html
 from types import SimpleNamespace
 
@@ -57,6 +59,8 @@ from xml.etree.ElementTree import parse
 from pgconnection import PgConnection
 
 from dgw_filter import dgw_filter
+
+DEBUG=os.getenv('DEBUG_REQUIREMENT_BLOCKS')
 
 csv.field_size_limit(sys.maxsize)
 
@@ -103,8 +107,8 @@ def csv_generator(file):
         Row = namedtuple('Row', cols)
       else:
         try:
-          # Trim trailing whitespace from lines in the Scribe text; they were messing up checks for
-          # changes to the blocks.
+          # Trim trailing whitespace from lines in the Scribe text; they were messing up checking
+          # for changes to the blocks at one point.
           row = Row._make(line)._asdict()
           requirement_text = row['requirement_text']
           row['requirement_text'] = '\n'.join([scribe_line.rstrip()
@@ -140,13 +144,49 @@ def xml_generator(file):
 # -------------------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--debug', action='store_true', default=False)
-parser.add_argument('-v', '--verbose', action='store_true', default=False)
+parser.add_argument('-p', '--parse', action='store_true', default=False)
 parser.add_argument('-f', '--file', default='./downloads/dgw_dap_req_block.csv')
-parser.add_argument('-de', '--delimiter', default=',')
-parser.add_argument('-q', '--quotechar', default='"')
+parser.add_argument('--delimiter', default=',')
+parser.add_argument('--quotechar', default='"')
+parser.add_argument('--timelimit', default='60')
 args = parser.parse_args()
 
-# These are the columns that get initialized here. See cursor.create table for full list of columns.
+if args.debug:
+  DEBUG = True
+
+#  Schema for the requirement_blocks table
+#     -- From dap_req_block.csv
+#     institution       text   not null,
+#     requirement_id    text   not null,
+#     block_type        text,
+#     block_value       text,
+#     title             text,
+#     period_start      text,
+#     period_stop       text,
+#     school            text,
+#     degree            text,
+#     college           text,
+#     major1            text,
+#     major2            text,
+#     concentration     text,
+#     minor             text,
+#     liberal_learning  text,
+#     specialization    text,
+#     program           text,
+#     parse_status      text,
+#     parse_date        date,
+#     parse_who         text,
+#     parse_what        text,
+#     lock_version      text,
+#     requirement_text  text,
+#     irdw_load_date    date,
+#     -- Added Values
+#     requirement_html  text,
+#     parse_tree        jsonb default '{}'::jsonb,
+#     hexdigest         text,
+#
+#    PRIMARY KEY (institution, requirement_id))""")
+
 db_cols = ['institution',
            'requirement_id',
            'block_type',
@@ -164,9 +204,15 @@ db_cols = ['institution',
            'liberal_learning',
            'specialization',
            'program',
-           'student_id',
+           'parse_status',
+           'parse_date',
+           'parse_who',
+           'parse_what',
+           'lock_version',
            'requirement_text',
+           'irdw_load_date',
            'requirement_html',
+           'parse_tree',
            'hexdigest']
 vals = '%s, ' * len(db_cols)
 vals = '(' + vals.strip(', ') + ')'
@@ -175,10 +221,6 @@ DB_Record = namedtuple('DB_Record', db_cols)
 
 conn = PgConnection()
 cursor = conn.cursor()
-
-# Dict of rows by institution
-institutions = {}
-Institution = namedtuple('Institution', 'load_date rows')
 
 file = Path(args.file)
 if not file.exists():
@@ -200,129 +242,110 @@ elif file.suffix.lower() == '.csv':
 else:
   sys.exit(f'Unsupported file type: {file.suffix}')
 
-# Gather all the rows for all the institutions
-for row in generator(file):
-  institution = row.institution.upper()
+irdw_load_date = None
+# Process the dgw_dap_req_block file
+for new_row in generator(file):
 
-  # Integrity check: all rows for an institution must have the same load date.
-  load_date = row.irdw_load_date[0:10]
-
-  if institution not in institutions.keys():
-    institutions[institution] = Institution._make([load_date, []])
-  assert load_date == institutions[institution].load_date, \
-      f'{load_date} is not {institutions[institution].load_date} for {institution}'
-
-  institutions[institution].rows.append(row)
-
-#  Schema for the table
-#    create table requirement_blocks (
-#    institution       text   not null,
-#    requirement_id    text   not null,
-#    block_type        text,
-#    block_value       text,
-#    title             text,
-#    period_start      text,
-#    period_stop       text,
-#    school            text,
-#    degree            text,
-#    college           text,
-#    major1            text,
-#    major2            text,
-#    concentration     text,
-#    minor             text,
-#    liberal_learning  text,
-#    specialization    text,
-#    program           text,
-#    parse_status      text,
-#    parse_date        date,
-#    parse_who         integer,
-#    parse_what        text,
-#    lock_version      text,
-#    requirement_text  text,
-#    load_date         date,
-#    -- Added Values
-#    requirement_html  text default 'Not Available'::text,
-#    parse_tree        jsonb default '{}'::jsonb,
-#    hexdigest         text,
-#
-#    PRIMARY KEY (institution, requirement_id))""")
-
-# Process the rows from the csv or xml file, institution by institution
-for institution in institutions.keys():
-  print(institution, file=sys.stderr)
-  load_date = institutions[institution].load_date
+  # Integrity check: all rows must have the same irdw load date.
   # Desired date format: YYYY-MM-DD
+  load_date = new_row.irdw_load_date[0:10]
   if re.match(r'^\d{4}-\d{2}-\d{2}$', load_date):
-    pass
+    load_date = datetime.date.fromisoformat(load_date)
   # Alternate format: DD-MMM-YY
   elif re.match(r'\d{2}-[a-z]{3}-\d{2}', load_date, re.I):
-    load_date = datetime.strptime(load_date, '%d-%b-%y').strftime('%Y-%m-%d')
+    dt = datetime.strptime(load_date, '%d-%b-%y').strftime('%Y-%m-%d')
+    load_date = datetime.date(dt.year, dt.month, dt.day)
   else:
     sys.exit(f'Unrecognized load date format: {load_date}')
+  if irdw_load_date is None:
+    irdw_load_date = load_date
+  if irdw_load_date != load_date:
+    sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
+             f'for {row.institution} {row.requirement_id}')
 
-  num_records = len(institutions[institution].rows)
-  suffix = '' if num_records == 1 else 's'
-  if args.verbose:
-    print(f'Examining {num_records:5,} record{suffix} dated {load_date} '
-          f'from {file} for {institution}')
+  """ Determine the action to take.
+        If args.parse, generate a new parse_tree, and insert/update the row
+        If this is a new block, insert the row
+        If this is an exisitng block and it has changed, update the row
+        During development, if block exists, has not changed, but parse_date has changed, report it.
+  """
+  do_upsert = False
+  if args.parse:
+    parse_tree = dgw_parser(row.institution, requirement_id=row.requirement_id, update_db=False,
+                            timelimit = args.timelimit)
+    do_upsert = True
+  else:
+    parse_tree = {}
 
-  # Insert new rows; update changed rows. Ignore other rows.
-  num_changed = 0
-  for row in institutions[institution].rows:
-    decrufted = decruft(row.requirement_text)
-    hexdigest = md5(decrufted.encode('utf-8')).hexdigest()
-    cursor.execute(f"""
-    select requirement_text, hexdigest from requirement_blocks
-     where institution = '{row.institution}'
-       and requirement_id = '{row.requirement_id}'
-       and period_stop ~* '9999'
-    """)
-    if cursor.rowcount == 0:
-      print(f'{row.institution} {row.requirement_id} is NEW')
-    else:
-      assert cursor.rowcount == 1
-      db_row = cursor.fetchone()
-      # if db_row.hexdigest == hexdigest:
-      #   print(f'{row.institution} {row.requirement_id} is NOT changed')
-      # else:
-      #   print(f'{row.institution} {row.requirement_id} IS changed')
-      #   num_changed += 1
-      #   with open(f'diffs/{row.institution}_{row.requirement_id}_new', 'w') as _new:
-      #     print(decrufted, file=_new)
-      #   with open(f'diffs/{row.institution}_{row.requirement_id}_old', 'w') as _old:
-      #     print(decruft(db_row.requirement_text), file=_old)
+  cursor.execute(f"""
+  select parse_date, requirement_text, hexdigest from requirement_blocks
+   where institution = '{new_row.institution}'
+     and requirement_id = '{new_row.requirement_id}'
+  """)
+  if cursor.rowcount == 0:
+    print(f'{new_row.institution} {new_row.requirement_id} is NEW')
+    do_upsert = True
+  else:
+    assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
+                                  f'{requirement_id}')
+  db_row = cursor.fetchone()
 
-    db_record = DB_Record._make([institution,
-                                 row.requirement_id,
-                                 row.block_type,
-                                 row.block_value,
-                                 decruft(row.title),
-                                 row.period_start,
-                                 row.period_stop,
-                                 row.school,
-                                 row.degree,
-                                 row.college,
-                                 row.major1,
-                                 row.major2,
-                                 row.concentration,
-                                 row.minor,
-                                 row.liberal_learning,
-                                 row.specialization,
-                                 row.program,
-                                 row.student_id,
-                                 decruft(row.requirement_text),
-                                 to_html(row.requirement_text),
+  decrufted = decruft(new_row.requirement_text)
+  hexdigest = md5(decrufted.encode('utf-8')).hexdigest()
+  parse_date = datetime.date.fromisoformat(new_row.parse_date)
+
+  parse_date_diff = (parse_date - db_row.parse_date).days
+  suffix = '' if parse_date_diff == 1 else 's'
+  diff_msg = f'{parse_date_diff} day{suffix} since previous parse date'
+
+  if db_row.hexdigest == hexdigest:
+    print(f'{new_row.institution} {new_row.requirement_id} is NOT changed ({diff_msg})')
+  else:
+    print(f'{new_row.institution} {new_row.requirement_id} IS changed ({diff_msg})')
+    do_upsert = True
+    if DEBUG:
+      with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_new', 'w') as _new:
+        print(decrufted, file=_new)
+      with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_old', 'w') as _old:
+        print(decruft(db_row.requirement_text), file=_old)
+
+  if do_upsert:
+    db_record = DB_Record._make([new_row.institution,
+                                 new_row.requirement_id,
+                                 new_row.block_type,
+                                 new_row.block_value,
+                                 decruft(new_row.title),
+                                 new_row.period_start,
+                                 new_row.period_stop,
+                                 new_row.school,
+                                 new_row.degree,
+                                 new_row.college,
+                                 new_row.major1,
+                                 new_row.major2,
+                                 new_row.concentration,
+                                 new_row.minor,
+                                 new_row.liberal_learning,
+                                 new_row.specialization,
+                                 new_row.program,
+                                 new_row.parse_status,
+                                 parse_date,
+                                 new_row.parse_who,
+                                 new_row.parse_what,
+                                 new_row.lock_version,
+                                 decrufted,
+                                 load_date,
+                                 to_html(new_row.requirement_text),
+                                 json.dumps(parse_tree),
                                  hexdigest])
 
     vals = ', '.join([f"'{val}'" for val in db_record])
-    # cursor.execute(f'insert into requirement_blocks ({",".join(db_cols)}) values ({vals})')
     cursor.execute(f"""
-    update requirement_blocks set requirement_text='{decruft(row.requirement_text)}',
-                                  requirement_html='{to_html(row)}',
-                                  hexdigest='{hexdigest}'
-     where institution = '{institution}'
-       and requirement_id = '{row.requirement_id}'
-    """)
+                        insert into requirement_blocks ({",".join(db_cols)}) values ({vals})
+                        on conflict (requirement_blocks_pkey) do update set
+
+                   """)
+    assert cursor.rowcount == 1, (f'Upserted {cursor.rowcount} rows\n{cursor.query}')
+
 cursor.execute(f"""update updates
                       set update_date = '{load_date}'
                     where table_name = 'requirement_blocks'""")
@@ -335,5 +358,5 @@ if file.parent.name != 'archives':
   file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_info/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
   # Be sure the file modification time matches the load_date
-mtime = datetime.fromisoformat(load_date).timestamp()
+mtime = datetime.datetime.fromisoformat(load_date).timestamp()
 os.utime(file, (mtime, mtime))

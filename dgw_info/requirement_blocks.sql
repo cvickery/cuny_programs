@@ -25,6 +25,7 @@ create table new_requirement_blocks (
  parse_what        text,
  lock_version      text,
  requirement_text  text,
+ irdw_load_date    date,
  -- Added Values
  requirement_html  text,
  parse_tree        jsonb default '{}'::jsonb,

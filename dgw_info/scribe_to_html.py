@@ -11,7 +11,7 @@ def to_html(requirement_text):
   # catalog_type, first_year, last_year, catalog_years_text = catalog_years(row.period_start,
   #                                                                         row.period_stop)
   # institution_name = institution_names[row.institution]
-  filtered_text = dgw_filter(row.requirement_text)
+  filtered_text = dgw_filter(requirement_text)
   html = f"""
 <details>
   <summary><strong>Degree Works Code</strong> (<em>Scribe Block</em>)</summary>
