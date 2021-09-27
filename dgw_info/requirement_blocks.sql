@@ -1,7 +1,7 @@
 -- The requirement_blocks table
-drop table if exists new_requirement_blocks cascade;
+drop table if exists requirement_blocks cascade;
 
-create table new_requirement_blocks (
+create table requirement_blocks (
  institution       text   not null,
  requirement_id    text   not null,
  block_type        text,
@@ -25,9 +25,8 @@ create table new_requirement_blocks (
  parse_what        text,
  lock_version      text,
  requirement_text  text,
- irdw_load_date    date,
- -- Added Values
  requirement_html  text,
- parse_tree        jsonb default '{}'::jsonb,
  hexdigest         text,
+ parse_tree        jsonb default '{}'::jsonb,
+ irdw_load_date    date,
  PRIMARY KEY (institution, requirement_id));

@@ -40,25 +40,25 @@
     YC YRK01 | York College
 """
 
-import os
-import re
-import sys
+import argparse
 import csv
 import datetime
 import json
-import argparse
+import os
+import re
+import sys
+import time
 
-from pathlib import Path
 from collections import namedtuple
 from hashlib import md5
-from scribe_to_html import to_html
+from pathlib import Path
 from types import SimpleNamespace
-
 from xml.etree.ElementTree import parse
 
 from pgconnection import PgConnection
+from dgw_parser import dgw_parser
 
-from dgw_filter import dgw_filter
+from scribe_to_html import to_html
 
 DEBUG=os.getenv('DEBUG_REQUIREMENT_BLOCKS')
 
@@ -69,6 +69,12 @@ for c in range(14, 31):
   trans_dict[c] = None
 
 cruft_table = str.maketrans(trans_dict)
+
+
+class Action:
+  def __init__(self):
+    self.do_insert = False
+    self.do_update = False
 
 
 # decruft()
@@ -179,11 +185,10 @@ if args.debug:
 #     parse_what        text,
 #     lock_version      text,
 #     requirement_text  text,
-#     irdw_load_date    date,
-#     -- Added Values
 #     requirement_html  text,
-#     parse_tree        jsonb default '{}'::jsonb,
 #     hexdigest         text,
+#     parse_tree        jsonb,
+#     irdw_load_date    date,
 #
 #    PRIMARY KEY (institution, requirement_id))""")
 
@@ -210,10 +215,10 @@ db_cols = ['institution',
            'parse_what',
            'lock_version',
            'requirement_text',
-           'irdw_load_date',
            'requirement_html',
+           'hexdigest',
            'parse_tree',
-           'hexdigest']
+           'irdw_load_date']
 vals = '%s, ' * len(db_cols)
 vals = '(' + vals.strip(', ') + ')'
 
@@ -264,18 +269,24 @@ for new_row in generator(file):
              f'for {row.institution} {row.requirement_id}')
 
   """ Determine the action to take.
-        If args.parse, generate a new parse_tree, and insert/update the row
-        If this is a new block, insert the row
-        If this is an exisitng block and it has changed, update the row
+        If args.parse, generate a new parse_tree, and update or insert as the case may be
+        If this is a new block, do insert
+        If this is an exisitng block and it has changed, do update
         During development, if block exists, has not changed, but parse_date has changed, report it.
   """
-  do_upsert = False
+  action = Action()
   if args.parse:
-    parse_tree = dgw_parser(row.institution, requirement_id=row.requirement_id, update_db=False,
-                            timelimit = args.timelimit)
-    do_upsert = True
+    parse_tree = dgw_parser(new_row.institution, requirement_id=new_row.requirement_id,
+                            update_db=False, timelimit = int(args.timelimit))
+    do_update = True
   else:
     parse_tree = {}
+  parse_tree_json = json.dumps(parse_tree)
+
+  requirement_text = decruft(new_row.requirement_text)
+  hexdigest = md5(requirement_text.encode('utf-8')).hexdigest()
+  requirement_html = to_html(requirement_text)
+  parse_date = datetime.date.fromisoformat(new_row.parse_date)
 
   cursor.execute(f"""
   select parse_date, requirement_text, hexdigest from requirement_blocks
@@ -284,32 +295,29 @@ for new_row in generator(file):
   """)
   if cursor.rowcount == 0:
     print(f'{new_row.institution} {new_row.requirement_id} is NEW')
-    do_upsert = True
+    action.do_insert = True
   else:
     assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
                                   f'{requirement_id}')
-  db_row = cursor.fetchone()
+    db_row = cursor.fetchone()
+    parse_date_diff = (parse_date - db_row.parse_date).days
+    suffix = '' if parse_date_diff == 1 else 's'
+    diff_msg = f'{parse_date_diff} day{suffix} since previous parse date'
 
-  decrufted = decruft(new_row.requirement_text)
-  hexdigest = md5(decrufted.encode('utf-8')).hexdigest()
-  parse_date = datetime.date.fromisoformat(new_row.parse_date)
+    if db_row.hexdigest == hexdigest:
+      print(f'{new_row.institution} {new_row.requirement_id} is NOT changed ({diff_msg})')
+    else:
+      print(f'{new_row.institution} {new_row.requirement_id} IS changed ({diff_msg})')
+      action.do_update = True
+      if DEBUG:
+        with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_new', 'w') as _new:
+          print(decrufted, file=_new)
+        with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_old', 'w') as _old:
+          print(decruft(db_row.requirement_text), file=_old)
 
-  parse_date_diff = (parse_date - db_row.parse_date).days
-  suffix = '' if parse_date_diff == 1 else 's'
-  diff_msg = f'{parse_date_diff} day{suffix} since previous parse date'
 
-  if db_row.hexdigest == hexdigest:
-    print(f'{new_row.institution} {new_row.requirement_id} is NOT changed ({diff_msg})')
-  else:
-    print(f'{new_row.institution} {new_row.requirement_id} IS changed ({diff_msg})')
-    do_upsert = True
-    if DEBUG:
-      with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_new', 'w') as _new:
-        print(decrufted, file=_new)
-      with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_old', 'w') as _old:
-        print(decruft(db_row.requirement_text), file=_old)
+  if action.do_insert:
 
-  if do_upsert:
     db_record = DB_Record._make([new_row.institution,
                                  new_row.requirement_id,
                                  new_row.block_type,
@@ -332,24 +340,38 @@ for new_row in generator(file):
                                  new_row.parse_who,
                                  new_row.parse_what,
                                  new_row.lock_version,
-                                 decrufted,
-                                 load_date,
-                                 to_html(new_row.requirement_text),
-                                 json.dumps(parse_tree),
-                                 hexdigest])
+                                 requirement_text,
+                                 requirement_html,
+                                 hexdigest,
+                                 parse_tree_json,
+                                 irdw_load_date])
 
     vals = ', '.join([f"'{val}'" for val in db_record])
-    cursor.execute(f"""
-                        insert into requirement_blocks ({",".join(db_cols)}) values ({vals})
-                        on conflict (requirement_blocks_pkey) do update set
+    cursor.execute(f'insert into requirement_blocks ({",".join(db_cols)}) values ({vals})')
+    assert cursor.rowcount == 1, (f'Inserted {cursor.rowcount} rows\n{cursor.query}')
 
-                   """)
-    assert cursor.rowcount == 1, (f'Upserted {cursor.rowcount} rows\n{cursor.query}')
+  elif action.do_update:
+    # Things that might have changed
+    update_dict = {'period_stop': new_row.period_stop,
+                   'parse_status': new_row.parse_status,
+                   'parse_date': parse_date,
+                   'parse_who': new_row.parse_who,
+                   'parse_what': new_row.parse_what,
+                   'lock_version': new_row.lock_version,
+                   'requirement_text': requirement_text,
+                   'requirement_html': requirement_html,
+                   'parse_tree': parse_tree_json,
+                   'irdw_load_date': irdw_load_date,
+                   }
+    set_args = ','.join([f'{key}=%s' for key in update_dict.keys()])
+    cursor.execute(f"""
+    update requirement_blocks set {set_args}
+     where institution = %s and requirement_id = %s
+    """, ([v for v in  update_dict.values()] + [new_row.institution, new_row.requirement_id]))
 
 cursor.execute(f"""update updates
                       set update_date = '{load_date}'
                     where table_name = 'requirement_blocks'""")
-exit()
 conn.commit()
 conn.close()
 
@@ -358,5 +380,5 @@ if file.parent.name != 'archives':
   file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_info/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
   # Be sure the file modification time matches the load_date
-mtime = datetime.datetime.fromisoformat(load_date).timestamp()
+mtime = time.mktime(irdw_load_date.timetuple())
 os.utime(file, (mtime, mtime))
