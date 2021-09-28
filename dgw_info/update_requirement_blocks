@@ -28,7 +28,7 @@
                         ;;
       '-is')  ignore_size=True
                           ;;
-      *) echo Unrecognized option: $1
+      *) echo "Unrecognized option: $1"
          exit 1
          ;;
     esac
@@ -36,16 +36,17 @@
   done
 
   if [[ $skip_downloads == True ]]
-  then echo 'Skip download step'
+  then echo 'Skipping download step'
   else
     echo 'Get latest dap_req_block ... '
-    # Download new dgw_dap_req_block.csv if Tumbleweed access is possible and there is one from OIRA
-    if [[ `hostname` != cvlaptop.local && `hostname` != cvhome.local ]]
+    # Download new dgw_dap_req_block.csv if Tumbleweed access is possible and there is one from
+    # OAREDA.
+    if [[ `hostname` =~ cuny.edu ]]
     then
           export LFTP_PASSWORD=`cat /Users/vickery/.lftpwd`
           /usr/local/bin/lftp -f ./getcunyrc
           if [[ $? != 0 ]]
-          then echo Download failed!
+          then echo "Download failed!" 1>&2
           else echo '... done.'
           fi
     else echo "Unable to access Tumbleweed from `hostname`"
@@ -61,49 +62,53 @@
                   (abs(($size_download - $size_latest) / $size_latest) > 0.1)" | bc` != 0 ]]
       then
            echo Notice from `hostname` > msg
-           printf "Downloaded size (%'d bytes) is over 10 percent different \n" $size_download >> msg
+           printf "Downloaded size (%'d bytes) is over 10% different \n" $size_download >> msg
            printf "from latest archive size (%'d bytes).\n" $size_latest >> msg
            /Users/vickery/bin/sendemail -s "dgw_dap_req_block.csv download failed" \
            -t msg cvickery@qc.cuny.edu
            rm msg
 
-        printf "Downloaded size (%'d bytes) is over 10 percent different \n" $size_download
-        printf "from latest archive size (%'d bytes).\n" $size_latest
+        printf "Downloaded size (%'d bytes) is over 10% different \n" $size_download 1>&2
+        printf "from latest archive size (%'d bytes).\n" $size_latest 1>&2
         ls -lh $latest_archive_file ./downloads
         if [[ -e $current_download_file ]]
-        then echo "Discarding lousy download"
-             rm -f $current_download_file
+        then
+            rm -f $current_download_file
+            echo "Removed lousy download"
         fi
+        exit 1
       fi
+    else
+      echo "Skipping size check"
     fi
 
-  # Pick the csv file to work with: either the newly-downloaded one or the most-recent archived one.
-  if [[ ! -e downloads/dgw_dap_req_block.csv ]]
-  then
-      # No download available, so copy latest archived file back to downloads for use in the next
-      # stage.
-      cp $latest_archive_file ./downloads/dgw_dap_req_block.csv
-      echo "No ./downloads/dap_req_block.csv available. Substituting $latest_archive_file."
-  fi
+  # # Pick the csv file to work with: either the newly-downloaded one or the most-recent archived one.
+  # if [[ ! -e downloads/dgw_dap_req_block.csv ]]
+  # then
+  #     # No download available, so copy latest archived file back to downloads for use in the next
+  #     # stage.
+  #     cp $latest_archive_file ./downloads/dgw_dap_req_block.csv
+  #     echo "No ./downloads/dap_req_block.csv available. Substituting $latest_archive_file."
+  # fi
 
-  # Update the db using the info in the csv file set up in previous stage
-  echo "Start cuny_requirement_blocks.py"
-  SECONDS=0
+  # # Update the db using the info in the csv file set up in previous stage
+  # echo "Start cuny_requirement_blocks.py"
+  # SECONDS=0
 
-  ./cuny_requirement_blocks.py -v
+  # ./cuny_requirement_blocks.py -v
 
-  # Generate the HTML and CSV table cols for registered programs.
-  # This is done here so the HTML can include links to the requirement web pages for displaying the
-  # blocks.
-  echo -n 'Generate HTML and CSV column values for registered programs ... '
-  cd ..
-  ./generate_html.py
-  if [[ $? != 0 ]]
-  then echo 'FAILED!'
-       exit 1
-  else echo 'done.'
-  fi
+  # # Generate the HTML and CSV table cols for registered programs.
+  # # This is done here so the HTML can include links to the requirement web pages for displaying the
+  # # blocks.
+  # echo -n 'Generate HTML and CSV column values for registered programs ... '
+  # cd ..
+  # ./generate_html.py
+  # if [[ $? != 0 ]]
+  # then echo 'FAILED!'
+  #      exit 1
+  # else echo 'done.'
+  # fi
 
-  echo "End cuny_requirement_blocks.py after $SECONDS seconds."
+  # echo "End cuny_requirement_blocks.py after $SECONDS seconds."
 
 )
