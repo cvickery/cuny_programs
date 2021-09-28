@@ -17,7 +17,7 @@
     SOJ01 | Graduate School of Journalism
     SPH01 | School of Public Health
 
-    Map DGW college codes to CF college codes
+    This is a map of DGW college codes to CF college codes
     BB BAR01 | Baruch College
     BC BKL01 | Brooklyn College
     BM BMC01 | Borough of Manhattan CC
@@ -43,6 +43,7 @@
 import argparse
 import csv
 import datetime
+import difflib
 import json
 import os
 import re
@@ -50,8 +51,8 @@ import sys
 import time
 
 from collections import namedtuple
-from hashlib import md5
 from pathlib import Path
+from subprocess import run
 from types import SimpleNamespace
 from xml.etree.ElementTree import parse
 
@@ -60,7 +61,7 @@ from dgw_parser import dgw_parser
 
 from scribe_to_html import to_html
 
-DEBUG=os.getenv('DEBUG_REQUIREMENT_BLOCKS')
+DEBUG = os.getenv('DEBUG_REQUIREMENT_BLOCKS')
 
 csv.field_size_limit(sys.maxsize)
 
@@ -149,10 +150,12 @@ def xml_generator(file):
 # __main__()
 # -------------------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
-parser.add_argument('-d', '--debug', action='store_true', default=False)
-parser.add_argument('-p', '--parse', action='store_true', default=False)
+parser.add_argument('-d', '--debug', action='store_true')
 parser.add_argument('-f', '--file', default='./downloads/dgw_dap_req_block.csv')
+parser.add_argument('-g', '--get_blocks', action='store_true')
+parser.add_argument('-p', '--parse', action='store_true')
 parser.add_argument('--delimiter', default=',')
+parser.add_argument('--log_unchanged', action='store_true')
 parser.add_argument('--quotechar', default='"')
 parser.add_argument('--timelimit', default='60')
 args = parser.parse_args()
@@ -160,65 +163,19 @@ args = parser.parse_args()
 if args.debug:
   DEBUG = True
 
-#  Schema for the requirement_blocks table
-#     -- From dap_req_block.csv
-#     institution       text   not null,
-#     requirement_id    text   not null,
-#     block_type        text,
-#     block_value       text,
-#     title             text,
-#     period_start      text,
-#     period_stop       text,
-#     school            text,
-#     degree            text,
-#     college           text,
-#     major1            text,
-#     major2            text,
-#     concentration     text,
-#     minor             text,
-#     liberal_learning  text,
-#     specialization    text,
-#     program           text,
-#     parse_status      text,
-#     parse_date        date,
-#     parse_who         text,
-#     parse_what        text,
-#     lock_version      text,
-#     requirement_text  text,
-#     requirement_html  text,
-#     hexdigest         text,
-#     parse_tree        jsonb,
-#     irdw_load_date    date,
-#
-#    PRIMARY KEY (institution, requirement_id))""")
+if args.get_blocks:
+  print('Get latest requirement blocks from Tumbleweed', end='')
+  update_result = run(['./update_requirement_blocks'], stdout=sys.stdout, stderr=sys.stderr)
+  if update_result.returncode == 0:
+    print('.')
+  else:
+    print(' FAILED.')
 
-db_cols = ['institution',
-           'requirement_id',
-           'block_type',
-           'block_value',
-           'title',
-           'period_start',
-           'period_stop',
-           'school',
-           'degree',
-           'college',
-           'major1',
-           'major2',
-           'concentration',
-           'minor',
-           'liberal_learning',
-           'specialization',
-           'program',
-           'parse_status',
-           'parse_date',
-           'parse_who',
-           'parse_what',
-           'lock_version',
-           'requirement_text',
-           'requirement_html',
-           'hexdigest',
-           'parse_tree',
-           'irdw_load_date']
+db_cols = ['institution', 'requirement_id', 'block_type', 'block_value', 'title', 'period_start',
+           'period_stop', 'school', 'degree', 'college', 'major1', 'major2', 'concentration',
+           'minor', 'liberal_learning', 'specialization', 'program', 'parse_status', 'parse_date',
+           'parse_who', 'parse_what', 'lock_version', 'requirement_text', 'requirement_html',
+           'parse_tree', 'irdw_load_date']
 vals = '%s, ' * len(db_cols)
 vals = '(' + vals.strip(', ') + ')'
 
@@ -247,9 +204,13 @@ elif file.suffix.lower() == '.csv':
 else:
   sys.exit(f'Unsupported file type: {file.suffix}')
 
+start_time = int(time.time())
 empty_parse_tree = json.dumps({})
 irdw_load_date = None
+num_inserted = num_updated = 0
+
 # Process the dgw_dap_req_block file
+print(f'Using {file}')
 for new_row in generator(file):
 
   # Integrity check: all rows must have the same irdw load date.
@@ -268,6 +229,8 @@ for new_row in generator(file):
   if irdw_load_date != load_date:
     sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
              f'for {row.institution} {row.requirement_id}')
+  script_name = sys.argv[0].strip('yp.')
+  log_file = open(f'./logs/{script_name}_{irdw_load_date}.log', 'a')
 
   """ Determine the action to take.
         If args.parse, generate a new parse_tree, and update or insert as the case may be
@@ -277,12 +240,11 @@ for new_row in generator(file):
   """
   action = Action()
   requirement_text = decruft(new_row.requirement_text)
-  hexdigest = md5(requirement_text.encode('utf-8')).hexdigest()
   requirement_html = to_html(requirement_text)
   parse_date = datetime.date.fromisoformat(new_row.parse_date)
 
   cursor.execute(f"""
-  select parse_date, requirement_text, hexdigest from requirement_blocks
+  select parse_date, requirement_text from requirement_blocks
    where institution = '{new_row.institution}'
      and requirement_id = '{new_row.requirement_id}'
   """)
@@ -292,17 +254,20 @@ for new_row in generator(file):
     assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
                                   f'{requirement_id}')
     db_row = cursor.fetchone()
-    parse_date_diff = (parse_date - db_row.parse_date).days
-    suffix = '' if parse_date_diff == 1 else 's'
-    diff_msg = f'{parse_date_diff} day{suffix} since previous parse date'
+    days_ago = (parse_date - db_row.parse_date).days
+    suffix = '' if days_ago == 1 else 's'
+    diff_msg = f'{days_ago} day{suffix} since previous parse date'
 
-    if db_row.hexdigest != hexdigest:
+    if db_row.requirement_text != requirement_text:
       action.do_update = True
-      if DEBUG:
-        with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_new', 'w') as _new:
-          print(decrufted, file=_new)
-        with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_old', 'w') as _old:
-          print(decruft(db_row.requirement_text), file=_old)
+      with open(f'history/{new_row.institution}_{new_row.requirement_id}_{parse_date}-{days_ago}',
+                'w') as _diff_file:
+        diff_lines = difflib.context_diff([f'{line}\n' for line in
+                                           db_row.requirement_text.split('\n')],
+                                          [f'{line}\n' for line in
+                                           requirement_text.split('\n')],
+                                          fromfile='previous', tofile='changed', n=0)
+        _diff_file.writelines(diff_lines)
 
   if action.do_insert:
 
@@ -330,16 +295,16 @@ for new_row in generator(file):
                                  new_row.lock_version,
                                  requirement_text,
                                  requirement_html,
-                                 hexdigest,
                                  empty_parse_tree,
                                  irdw_load_date])
 
     vals = ', '.join([f"'{val}'" for val in db_record])
     cursor.execute(f'insert into requirement_blocks ({",".join(db_cols)}) values ({vals})')
     assert cursor.rowcount == 1, (f'Inserted {cursor.rowcount} rows\n{cursor.query}')
+    print(f'Inserted  {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+          f'{new_row.block_value} {new_row.period_stop}.', file=log_file)
     conn.commit()
-    print(f'Inserted {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-          f'{new_row.block_value} {new_row.period_stop}')
+    num_inserted += 1
 
   elif action.do_update:
     # Things that might have changed
@@ -360,20 +325,26 @@ for new_row in generator(file):
      where institution = %s and requirement_id = %s
     """, ([v for v in update_dict.values()] + [new_row.institution, new_row.requirement_id]))
     assert cursor.rowcount == 1, (f'Updated {cursor.rowcount} rows\n{cursor.query}')
-    print(f'Updated {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-          f'{new_row.block_value} {new_row.period_stop}: {diff_msg}')
+    print(f'Updated   {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+          f'{new_row.block_value} {new_row.period_stop}: {diff_msg}.', file=log_file)
     conn.commit()
+    num_updated += 1
+
+  else:
+    if args.log_unchanged:
+      print(f'No change {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+            f'{new_row.block_value}.', file=log_file)
 
   if args.parse and (action.do_insert or action.do_update)\
      and new_row.block_type in ['CONC', 'MAJOR', 'MINOR'] \
      and new_row.period_stop.startswith('9'):
-    parse_error = ''
+    parse_error = ' OK'
     parse_tree = dgw_parser(new_row.institution, requirement_id=new_row.requirement_id,
                             timelimit=int(args.timelimit))
     if 'error' in parse_tree.keys():
       parse_error = ': ' + parse_tree['error']
-      print(f'{new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-            f'{new_row.block_value}{parse_error}.', file=sys.stderr)
+    print(f'Parsed    {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+          f'{new_row.block_value}  {new_row.period_stop}{parse_error}.', file=log_file)
 
 cursor.execute(f"""update updates
                       set update_date = '{load_date}'
@@ -385,6 +356,18 @@ conn.close()
 if file.parent.name != 'archives':
   file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_info/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
-  # Be sure the file modification time matches the load_date
+
+# Be sure the file modification time matches the load_date
 mtime = time.mktime(irdw_load_date.timetuple())
 os.utime(file, (mtime, mtime))
+
+# Regenerate program CSV and HTML files
+if num_updated + num_inserted > 0:
+  print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
+  run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
+else:
+  print('No updated or new blocks found')
+
+h, m = divmod((int(time.time()) - start_time), 3600)
+m, s = divmod(m, 60)
+print(f'Completed after {h}:{m:02}:{s:02}\n')
