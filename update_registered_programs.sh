@@ -83,14 +83,4 @@ done
 /usr/local/bin/psql cuny_curriculum -tqXc "update updates set update_date = '$update_date' \
                         where table_name = 'registered_programs'"
 
-
-# Recreate the requirement_blocks table
-if [[ $NO_DGW != True ]]
-then
-  (
-    cd ./dgw_info
-    ./update_requirement_blocks
-  )
-fi
-
 echo End update_registered_programs.py at `date`
