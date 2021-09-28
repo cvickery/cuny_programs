@@ -26,7 +26,18 @@ create table requirement_blocks (
  lock_version      text,
  requirement_text  text,
  requirement_html  text,
- hexdigest         text,
  parse_tree        jsonb default '{}'::jsonb,
  irdw_load_date    date,
  PRIMARY KEY (institution, requirement_id));
+
+drop view if exists view_blocks;
+create view view_blocks as
+  select institution,
+         requirement_id,
+         block_type,
+         block_value,
+         title,
+         period_stop,
+         parse_date,
+         irdw_load_date
+  from requirement_blocks;
