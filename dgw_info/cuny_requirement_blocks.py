@@ -247,6 +247,7 @@ elif file.suffix.lower() == '.csv':
 else:
   sys.exit(f'Unsupported file type: {file.suffix}')
 
+empty_parse_tree = json.dumps({})
 irdw_load_date = None
 # Process the dgw_dap_req_block file
 for new_row in generator(file):
@@ -274,17 +275,6 @@ for new_row in generator(file):
         If this is an exisitng block and it has changed, do update
         During development, if block exists, has not changed, but parse_date has changed, report it.
   """
-  parse_error = ''
-  if args.parse and new_row.period_stop.startswith('9'):
-    parse_tree = dgw_parser(new_row.institution, requirement_id=new_row.requirement_id,
-                            update_db=False, timelimit = int(args.timelimit))
-    if 'error' in parse_tree.keys():
-      parse_error = parse_tree['error']
-    do_update = True
-  else:
-    parse_tree = {}
-  parse_tree_json = json.dumps(parse_tree)
-
   action = Action()
   requirement_text = decruft(new_row.requirement_text)
   hexdigest = md5(requirement_text.encode('utf-8')).hexdigest()
@@ -297,7 +287,6 @@ for new_row in generator(file):
      and requirement_id = '{new_row.requirement_id}'
   """)
   if cursor.rowcount == 0:
-    print(f'{new_row.institution} {new_row.requirement_id} is NEW')
     action.do_insert = True
   else:
     assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
@@ -307,17 +296,13 @@ for new_row in generator(file):
     suffix = '' if parse_date_diff == 1 else 's'
     diff_msg = f'{parse_date_diff} day{suffix} since previous parse date'
 
-    if db_row.hexdigest == hexdigest:
-      print(f'{new_row.institution} {new_row.requirement_id} is NOT changed ({diff_msg})')
-    else:
-      print(f'{new_row.institution} {new_row.requirement_id} IS changed ({diff_msg})')
+    if db_row.hexdigest != hexdigest:
       action.do_update = True
       if DEBUG:
         with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_new', 'w') as _new:
           print(decrufted, file=_new)
         with open(f'diffs/{new_row.institution}_{new_row.requirement_id}_old', 'w') as _old:
           print(decruft(db_row.requirement_text), file=_old)
-
 
   if action.do_insert:
 
@@ -346,12 +331,15 @@ for new_row in generator(file):
                                  requirement_text,
                                  requirement_html,
                                  hexdigest,
-                                 parse_tree_json,
+                                 empty_parse_tree,
                                  irdw_load_date])
 
     vals = ', '.join([f"'{val}'" for val in db_record])
     cursor.execute(f'insert into requirement_blocks ({",".join(db_cols)}) values ({vals})')
     assert cursor.rowcount == 1, (f'Inserted {cursor.rowcount} rows\n{cursor.query}')
+    conn.commit()
+    print(f'Inserted {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+          f'{new_row.block_value} {new_row.period_stop}')
 
   elif action.do_update:
     # Things that might have changed
@@ -363,14 +351,29 @@ for new_row in generator(file):
                    'lock_version': new_row.lock_version,
                    'requirement_text': requirement_text,
                    'requirement_html': requirement_html,
-                   'parse_tree': parse_tree_json,
+                   'parse_tree': empty_parse_tree,
                    'irdw_load_date': irdw_load_date,
                    }
     set_args = ','.join([f'{key}=%s' for key in update_dict.keys()])
     cursor.execute(f"""
     update requirement_blocks set {set_args}
      where institution = %s and requirement_id = %s
-    """, ([v for v in  update_dict.values()] + [new_row.institution, new_row.requirement_id]))
+    """, ([v for v in update_dict.values()] + [new_row.institution, new_row.requirement_id]))
+    assert cursor.rowcount == 1, (f'Updated {cursor.rowcount} rows\n{cursor.query}')
+    print(f'Updated {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+          f'{new_row.block_value} {new_row.period_stop}: {diff_msg}')
+    conn.commit()
+
+  if args.parse and (action.do_insert or action.do_update)\
+     and new_row.block_type in ['CONC', 'MAJOR', 'MINOR'] \
+     and new_row.period_stop.startswith('9'):
+    parse_error = ''
+    parse_tree = dgw_parser(new_row.institution, requirement_id=new_row.requirement_id,
+                            timelimit=int(args.timelimit))
+    if 'error' in parse_tree.keys():
+      parse_error = ': ' + parse_tree['error']
+      print(f'{new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+            f'{new_row.block_value}{parse_error}.', file=sys.stderr)
 
 cursor.execute(f"""update updates
                       set update_date = '{load_date}'
