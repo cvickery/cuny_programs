@@ -363,6 +363,9 @@ os.utime(file, (mtime, mtime))
 
 # Regenerate program CSV and HTML files
 if num_updated + num_inserted > 0:
+  h, m = divmod((int(time.time()) - start_time), 3600)
+  m, s = divmod(m, 60)
+  print(f'Elapsed time: {h}:{m:02}:{s:02}\n')
   print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
   run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
 else:
@@ -370,4 +373,4 @@ else:
 
 h, m = divmod((int(time.time()) - start_time), 3600)
 m, s = divmod(m, 60)
-print(f'Completed after {h}:{m:02}:{s:02}\n')
+print(f'Total time: {h}:{m:02}:{s:02}\n')
