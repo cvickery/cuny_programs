@@ -165,7 +165,7 @@ if args.debug:
 
 if args.get_blocks:
   print('Get latest requirement blocks from Tumbleweed', end='')
-  update_result = run(['./update_requirement_blocks'], stdout=sys.stdout, stderr=sys.stderr)
+  update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stderr)
   if update_result.returncode == 0:
     print('.')
   else:
