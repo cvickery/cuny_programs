@@ -164,12 +164,10 @@ if args.debug:
   DEBUG = True
 
 if args.get_blocks:
-  print('Get latest requirement blocks from Tumbleweed', end='')
+  print('Get latest requirement blocks from Tumbleweed')
   update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stderr)
-  if update_result.returncode == 0:
-    print('.')
-  else:
-    print(' FAILED.')
+  if update_result.returncode != 0:
+    print('Tumbleweed download FAILED.')
 
 db_cols = ['institution', 'requirement_id', 'block_type', 'block_value', 'title', 'period_start',
            'period_stop', 'school', 'degree', 'college', 'major1', 'major2', 'concentration',
