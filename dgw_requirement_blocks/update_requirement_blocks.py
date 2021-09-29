@@ -187,7 +187,7 @@ cursor = conn.cursor()
 file = Path(args.file)
 if not file.exists():
   # Try the latest archived version
-  archives_dir = Path('/Users/vickery/Projects/CUNY_Programs/dgw_info/archives')
+  archives_dir = Path('/Users/vickery/Projects/CUNY_Programs/dgw_requirement_blocks/archives')
   archives = archives_dir.glob('dgw_dap_req_block*.csv')
   latest = None
   for archive in archives:
@@ -344,7 +344,7 @@ for new_row in generator(file):
     if 'error' in parse_tree.keys():
       parse_error = ': ' + parse_tree['error']
     print(f'Parsed    {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-          f'{new_row.block_value}  {new_row.period_stop}{parse_error}.', file=log_file)
+          f'{new_row.block_value} {new_row.period_stop}{parse_error}.', file=log_file)
 
 cursor.execute(f"""update updates
                       set update_date = '{load_date}'
@@ -354,7 +354,7 @@ conn.close()
 
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
-  file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_info/archives/'
+  file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
 
 # Be sure the file modification time matches the load_date
