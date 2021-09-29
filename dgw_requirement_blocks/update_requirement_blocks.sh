@@ -25,12 +25,12 @@
   do
     case $1 in
       '-sd')  skip_downloads=True
-                        ;;
+              ;;
       '-is')  ignore_size=True
-                          ;;
-      *) echo "Unrecognized option: $1"
-         exit 1
-         ;;
+              ;;
+      *)      echo "Unrecognized option: $1"
+              exit 1
+              ;;
     esac
        shift
   done
@@ -46,43 +46,44 @@
           /usr/local/bin/lftp -f ./getcunyrc
           if [[ $? != 0 ]]
           then echo "Download failed!" 1>&2
-          else echo '... done.'
+          else echo 'Download complete.'
           fi
-    else echo "Unable to access Tumbleweed from `hostname`" 1>&2
-         exit 1
+    else  echo "Unable to access Tumbleweed from `hostname`" 1>&2
+          exit 1
     fi
   fi
 
-    if [[ $ignore_size ]]
-    then echo 'Skipping size check'
-    else
-      # Sanity check on file size. Should be within 10% of latest ... if there is a download
-      if [[ -e $current_download_file ]]
+  if [[ $ignore_size == True ]]
+  then echo 'Skipping size check'
+  else
+    # Sanity check on file size. Should be within 10% of latest ... if there is a download
+    if [[ -e $current_download_file ]]
+    then
+      size_download=`/usr/local/opt/coreutils/libexec/gnubin/stat -c %s $current_download_file`
+      size_latest=`/usr/local/opt/coreutils/libexec/gnubin/stat -c %s $latest_archive_file`
+      if [[ `echo "define abs(x) {if (x < 0) return (-x) else return (x)}; scale=6; \
+                  (abs(($size_download - $size_latest) / $size_latest) > 0.1)" | bc` != 0 ]]
       then
-        size_download=`/usr/local/opt/coreutils/libexec/gnubin/stat -c %s $current_download_file`
-        size_latest=`/usr/local/opt/coreutils/libexec/gnubin/stat -c %s $latest_archive_file`
-        if [[ `echo "define abs(x) {if (x < 0) return (-x) else return (x)}; scale=6; \
-                    (abs(($size_download - $size_latest) / $size_latest) > 0.1)" | bc` != 0 ]]
-        then
-             echo Notice from `hostname` > msg
-             printf "Downloaded size (%'d bytes) is over 10% different \n" $size_download >> msg
-             printf "from latest archive size (%'d bytes).\n" $size_latest >> msg
-             /Users/vickery/bin/sendemail -s "dgw_dap_req_block.csv download failed" \
-             -t msg cvickery@qc.cuny.edu
-             rm msg
+           echo Notice from `hostname` > msg
+           printf "Downloaded size (%'d bytes) is over 10% different \n" $size_download >> msg
+           printf "from latest archive size (%'d bytes).\n" $size_latest >> msg
+           /Users/vickery/bin/sendemail -s "dgw_dap_req_block.csv download failed" \
+           -t msg cvickery@qc.cuny.edu
+           rm msg
 
-          printf "Downloaded size (%'d bytes) is over 10% different \n" $size_download 1>&2
-          printf "from latest archive size (%'d bytes).\n" $size_latest 1>&2
-          ls -lh $latest_archive_file ./downloads
-          if [[ -e $current_download_file ]]
-          then
-              rm -f $current_download_file
-              echo "Removed lousy download"
-          fi
-          exit 1
+        printf "Downloaded size (%'d bytes) is over 10% different \n" $size_download 1>&2
+        printf "from latest archive size (%'d bytes).\n" $size_latest 1>&2
+        ls -lh $latest_archive_file ./downloads
+        if [[ -e $current_download_file ]]
+        then
+            rm -f $current_download_file
+            echo "Removed lousy download"
         fi
+        exit 1
+      else echo File size OK.
       fi
     fi
+  fi
 
   # # Pick the csv file to work with: either the newly-downloaded one or the most-recent archived one.
   # if [[ ! -e downloads/dgw_dap_req_block.csv ]]
