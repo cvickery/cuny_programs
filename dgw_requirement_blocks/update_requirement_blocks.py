@@ -227,8 +227,7 @@ for new_row in generator(file):
   if irdw_load_date != load_date:
     sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
              f'for {row.institution} {row.requirement_id}')
-  script_name = sys.argv[0].strip('yp.')
-  log_file = open(f'./logs/{script_name}_{irdw_load_date}.log', 'a')
+  log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'a')
 
   """ Determine the action to take.
         If args.parse, generate a new parse_tree, and update or insert as the case may be
