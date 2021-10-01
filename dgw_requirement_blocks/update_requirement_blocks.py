@@ -344,7 +344,7 @@ for new_row in generator(file):
           f'{new_row.block_value} {new_row.period_stop}{parse_error}.', file=log_file)
 
 cursor.execute(f"""update updates
-                      set update_date = '{load_date}'
+                      set update_date = '{load_date}', file_name = '{file.name}'
                     where table_name = 'requirement_blocks'""")
 conn.commit()
 conn.close()
