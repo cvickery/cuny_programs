@@ -1,6 +1,9 @@
 #! /usr/local/bin/bash
 
-# Recreate the requirement_blocks table, using the latest available csv file from OIRA.
+# Recreate the requirement_blocks table, using the latest available csv file from OAREDA.
+#
+#   Normally, this script is invoked from update_requirement_blocks.py, but it can be run as a
+#   standalone job in not-normal (but unspecified!) situations.
 (
   # Be sure we are in the correct place in the filesystsm
   cd /Users/vickery/Projects/cuny_programs/dgw_requirement_blocks
@@ -39,7 +42,8 @@
   then echo 'Skipping download step'
   else
     # Download new dgw_dap_req_block.csv if Tumbleweed access is possible and there is one from
-    # OAREDA.
+    # OAREDA. (Web access to Tumbleweed is possible from outside CUNY, but lftp access fails from
+    # computers not in the cuny.edu domain.)
     if [[ `hostname` =~ cuny.edu ]]
     then
           export LFTP_PASSWORD=`cat /Users/vickery/.lftpwd`
@@ -59,8 +63,9 @@
     # Sanity check on file size. Should be within 10% of latest ... if there is a download
     if [[ -e $current_download_file ]]
     then
-      size_download=`/usr/local/opt/coreutils/libexec/gnubin/stat -c %s $current_download_file`
-      size_latest=`/usr/local/opt/coreutils/libexec/gnubin/stat -c %s $latest_archive_file`
+      # Must use GNU stat to use '-c %s' to get the size of the file in bytes
+      size_download=`gstat -c %s $current_download_file`
+      size_latest=`gstat -c %s $latest_archive_file`
       if [[ `echo "define abs(x) {if (x < 0) return (-x) else return (x)}; scale=6; \
                   (abs(($size_download - $size_latest) / $size_latest) > 0.1)" | bc` != 0 ]]
       then
@@ -84,34 +89,4 @@
       fi
     fi
   fi
-
-  # # Pick the csv file to work with: either the newly-downloaded one or the most-recent archived one.
-  # if [[ ! -e downloads/dgw_dap_req_block.csv ]]
-  # then
-  #     # No download available, so copy latest archived file back to downloads for use in the next
-  #     # stage.
-  #     cp $latest_archive_file ./downloads/dgw_dap_req_block.csv
-  #     echo "No ./downloads/dap_req_block.csv available. Substituting $latest_archive_file."
-  # fi
-
-  # # Update the db using the info in the csv file set up in previous stage
-  # echo "Start cuny_requirement_blocks.py"
-  # SECONDS=0
-
-  # ./cuny_requirement_blocks.py -v
-
-  # # Generate the HTML and CSV table cols for registered programs.
-  # # This is done here so the HTML can include links to the requirement web pages for displaying the
-  # # blocks.
-  # echo -n 'Generate HTML and CSV column values for registered programs ... '
-  # cd ..
-  # ./generate_html.py
-  # if [[ $? != 0 ]]
-  # then echo 'FAILED!'
-  #      exit 1
-  # else echo 'done.'
-  # fi
-
-  # echo "End cuny_requirement_blocks.py after $SECONDS seconds."
-
 )

@@ -152,10 +152,10 @@ def xml_generator(file):
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--debug', action='store_true')
 parser.add_argument('-f', '--file', default='./downloads/dgw_dap_req_block.csv')
-parser.add_argument('-g', '--get_blocks', action='store_true')
 parser.add_argument('-p', '--parse', action='store_true')
-parser.add_argument('--delimiter', default=',')
 parser.add_argument('--log_unchanged', action='store_true')
+parser.add_argument('--skip_tumbleweed', action='store_true')
+parser.add_argument('--delimiter', default=',')
 parser.add_argument('--quotechar', default='"')
 parser.add_argument('--timelimit', default='60')
 args = parser.parse_args()
@@ -163,7 +163,7 @@ args = parser.parse_args()
 if args.debug:
   DEBUG = True
 
-if args.get_blocks:
+if not args.skip_tumbleweed:
   print('Get latest requirement blocks from Tumbleweed')
   update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stderr)
   if update_result.returncode != 0:
