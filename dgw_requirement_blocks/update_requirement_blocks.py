@@ -255,14 +255,14 @@ for new_row in generator(file):
     assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
                                   f'{requirement_id}')
     db_row = cursor.fetchone()
-    days_ago = (parse_date - db_row.parse_date).days
+    days_ago = f'{(parse_date - db_row.parse_date).days}'.zfill(3)
     suffix = '' if days_ago == 1 else 's'
     diff_msg = f'{days_ago} day{suffix} since previous parse date'
 
     if db_row.requirement_text != requirement_text:
       action.do_update = True
-      with open(f'history/{new_row.institution}_{new_row.requirement_id}_{parse_date}-{days_ago}',
-                'w') as _diff_file:
+      with open(f'history/{new_row.institution}_{new_row.requirement_id}_{parse_date}_'
+                f'{days_ago}', 'w') as _diff_file:
         diff_lines = difflib.context_diff([f'{line}\n' for line in
                                            db_row.requirement_text.split('\n')],
                                           [f'{line}\n' for line in
