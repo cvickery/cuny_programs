@@ -27,7 +27,7 @@ class Program(object):
       A single program can have multiple variants, which differ in title, institution, award, and/or
       hegis. Emprically, no two variants share the same {award, hegis, and institution} combination,
       so that tuple is used as the key for a dictionary of per-variant values. All variants of a
-      programs share a single program code and unit code.
+      program share a single program code and unit code.
 
       Variant details are maintained as a recordclass so the values can be updated as new records
       are retrieved from nys. [A recordclass is like a namedtuple, but the values are mutable.
@@ -76,8 +76,8 @@ class Program(object):
       self.variants[variant_tuple].award = award
       self.variants[variant_tuple].hegis = hegis
       self.variants[variant_tuple].institution = institution.upper()
-    for key in kwargs:
-      self.variants[variant_tuple][key] = kwargs[key]
+    for key, value in kwargs.items():
+      self.variants[variant_tuple][key] = value
     return variant_tuple
 
   @property
