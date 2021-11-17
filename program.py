@@ -14,7 +14,7 @@ _items = ['institution',
           'tap', 'apts', 'vvta',
           'certificate_license',
           'accreditation']
-_variant_info = recordclass('Variant_Info', _items)
+_variant_info = recordclass('Variant_Info', _items, mapping=True)
 
 
 class Program(object):
