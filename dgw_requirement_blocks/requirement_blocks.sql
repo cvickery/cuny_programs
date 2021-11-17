@@ -27,6 +27,7 @@ create table requirement_blocks (
  requirement_text  text,
  requirement_html  text,
  parse_tree        jsonb default '{}'::jsonb,
+ dgw_seconds       float,
  irdw_load_date    date,
  PRIMARY KEY (institution, requirement_id));
 
@@ -39,5 +40,7 @@ create view view_blocks as
          title,
          period_stop,
          parse_date,
+         to_char(length(parse_tree::text), '999G999G999') as tree_size,
+         dgw_seconds,
          irdw_load_date
   from requirement_blocks;
