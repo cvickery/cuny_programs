@@ -152,12 +152,14 @@ def xml_generator(file):
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--debug', action='store_true')
 parser.add_argument('-f', '--file', default='./downloads/dgw_dap_req_block.csv')
-parser.add_argument('-p', '--parse', action='store_true')
+parser.add_argument('--parse', dest='parse', action='store_true')
+parser.add_argument('--no_parse', dest='parse', action='store_false')
 parser.add_argument('--log_unchanged', action='store_true')
 parser.add_argument('--skip_tumbleweed', action='store_true')
 parser.add_argument('--delimiter', default=',')
 parser.add_argument('--quotechar', default='"')
 parser.add_argument('--timelimit', default='60')
+parser.set_defaults(parse=True)
 args = parser.parse_args()
 
 if args.debug:
@@ -187,6 +189,7 @@ conn = PgConnection()
 cursor = conn.cursor()
 
 file = Path(args.file)
+from_archive = False
 if not file.exists():
   # Try the latest archived version
   archives_dir = Path('/Users/vickery/Projects/CUNY_Programs/dgw_requirement_blocks/archives')
@@ -198,6 +201,7 @@ if not file.exists():
   if latest is None:
     sys.exit(f'{file} does not exist, and no archive found')
   file = latest
+  from_archive = True
 
 if file.suffix.lower() == '.xml':
   generator = xml_generator
@@ -212,7 +216,6 @@ irdw_load_date = None
 num_inserted = num_updated = 0
 
 # Process the dgw_dap_req_block file
-print(f'Using {file}')
 for new_row in generator(file):
 
   # Integrity check: all rows must have the same irdw load date.
@@ -228,10 +231,14 @@ for new_row in generator(file):
     sys.exit(f'Unrecognized load date format: {load_date}')
   if irdw_load_date is None:
     irdw_load_date = load_date
+    log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'a')
+    if from_archive:
+      print(f'Using {file} from archive')
+    else:
+      print(f'Using {file} {load_date}')
   if irdw_load_date != load_date:
     sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
              f'for {row.institution} {row.requirement_id}')
-  log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'a')
 
   """ Determine the action to take.
         If args.parse, generate a new parse_tree, and update or insert as the case may be
@@ -337,7 +344,7 @@ for new_row in generator(file):
             f'{new_row.block_value}.', file=log_file)
 
   if args.parse and (action.do_insert or action.do_update)\
-     and new_row.block_type in ['CONC', 'MAJOR', 'MINOR'] \
+     and new_row.block_type in ['CONC', 'MAJOR', 'MINOR', 'OTHER'] \
      and new_row.period_stop.startswith('9'):
     parse_error = ' OK'
     parse_tree = dgw_parser(new_row.institution, requirement_id=new_row.requirement_id,
