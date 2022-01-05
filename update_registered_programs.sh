@@ -27,7 +27,7 @@ fi
 
 # Copy IPEDS CIP codes to the cip_codes table.
 echo -n 'Recreate CIP Codes table ... '
-./cip_codes.py
+./cipcodes.py
 if [[ $? != 0 ]]
 then echo 'FAILED!'
      exit 1

@@ -2,7 +2,7 @@
 
 from pgconnection import PgConnection
 from knowninstitutions import known_institutions
-from cipcodes import cip_codes
+from cip_codes import cip_codes
 
 from collections import namedtuple
 import json
