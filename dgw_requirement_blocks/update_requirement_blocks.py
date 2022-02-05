@@ -46,18 +46,19 @@ import datetime
 import difflib
 import json
 import os
+import psycopg
 import re
 import sys
 import time
 
 from collections import namedtuple
 from pathlib import Path
+from psycopg.rows import namedtuple_row
 from subprocess import run
 from types import SimpleNamespace
 from xml.etree.ElementTree import parse
 
-from pgconnection import PgConnection
-from dgw_parser import dgw_parser
+from dgw_parser import parse_block
 
 from scribe_to_html import to_html
 
@@ -103,6 +104,8 @@ def decruft(block):
 def csv_generator(file):
   """ Generate rows from a csv export of OIRA’s DAP_REQ_BLOCK table.
   """
+  num_rows = open(file).readlines().count('\n')
+  print(f'{num_rows:,} rows')
   cols = None
   with open(file, newline='') as query_file:
     reader = csv.reader(query_file,
@@ -185,9 +188,6 @@ vals = '(' + vals.strip(', ') + ')'
 
 DB_Record = namedtuple('DB_Record', db_cols)
 
-conn = PgConnection()
-cursor = conn.cursor()
-
 file = Path(args.file)
 from_archive = False
 if not file.exists():
@@ -215,150 +215,155 @@ empty_parse_tree = json.dumps({})
 irdw_load_date = None
 num_inserted = num_updated = 0
 
-# Process the dgw_dap_req_block file
-for new_row in generator(file):
+with psycopg.connect('dbname=cuny_curriculum') as conn:
+  with conn.cursor(row_factory=namedtuple_row) as cursor:
+    # Process the dgw_dap_req_block file
+    row_num = 0
+    for new_row in generator(file):
 
-  # Integrity check: all rows must have the same irdw load date.
-  # Desired date format: YYYY-MM-DD
-  load_date = new_row.irdw_load_date[0:10]
-  if re.match(r'^\d{4}-\d{2}-\d{2}$', load_date):
-    load_date = datetime.date.fromisoformat(load_date)
-  # Alternate format: DD-MMM-YY
-  elif re.match(r'\d{2}-[a-z]{3}-\d{2}', load_date, re.I):
-    dt = datetime.strptime(load_date, '%d-%b-%y').strftime('%Y-%m-%d')
-    load_date = datetime.date(dt.year, dt.month, dt.day)
-  else:
-    sys.exit(f'Unrecognized load date format: {load_date}')
-  if irdw_load_date is None:
-    irdw_load_date = load_date
-    log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'a')
-    if from_archive:
-      print(f'Using {file} from archive')
-    else:
-      print(f'Using {file} {load_date}')
-  if irdw_load_date != load_date:
-    sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
-             f'for {row.institution} {row.requirement_id}')
+      # Integrity check: all rows must have the same irdw load date.
+      # Desired date format: YYYY-MM-DD
+      load_date = new_row.irdw_load_date[0:10]
+      if re.match(r'^\d{4}-\d{2}-\d{2}$', load_date):
+        load_date = datetime.date.fromisoformat(load_date)
+      # Alternate format: DD-MMM-YY
+      elif re.match(r'\d{2}-[a-z]{3}-\d{2}', load_date, re.I):
+        dt = datetime.strptime(load_date, '%d-%b-%y').strftime('%Y-%m-%d')
+        load_date = datetime.date(dt.year, dt.month, dt.day)
+      else:
+        sys.exit(f'Unrecognized load date format: {load_date}')
+      if irdw_load_date is None:
+        irdw_load_date = load_date
+        log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'a')
+        if from_archive:
+          print(f'Using {file} from archive')
+        else:
+          print(f'Using {file} {load_date}')
+      if irdw_load_date != load_date:
+        sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
+                 f'for {row.institution} {row.requirement_id}')
 
-  """ Determine the action to take.
-        If args.parse, generate a new parse_tree, and update or insert as the case may be
-        If this is a new block, do insert
-        If this is an exisitng block and it has changed, do update
-        During development, if block exists, has not changed, but parse_date has changed, report it.
-  """
-  action = Action()
-  requirement_text = decruft(new_row.requirement_text)
-  requirement_html = to_html(requirement_text)
-  parse_date = datetime.date.fromisoformat(new_row.parse_date)
+      row_num += 1
+      print(f'\r{row_num:7,}', end='')
+      """ Determine the action to take.
+            If args.parse, generate a new parse_tree, and update or insert as the case may be
+            If this is a new block, do insert
+            If this is an exisitng block and it has changed, do update
+            During development, if block exists, has not changed, but parse_date has changed, report it.
+      """
+      action = Action()
+      requirement_text = decruft(new_row.requirement_text)
+      requirement_html = to_html(requirement_text)
+      parse_date = datetime.date.fromisoformat(new_row.parse_date)
 
-  cursor.execute(f"""
-  select parse_date, requirement_text from requirement_blocks
-   where institution = '{new_row.institution}'
-     and requirement_id = '{new_row.requirement_id}'
-  """)
-  if cursor.rowcount == 0:
-    action.do_insert = True
-  else:
-    assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
-                                  f'{requirement_id}')
-    db_row = cursor.fetchone()
-    days_ago = f'{(parse_date - db_row.parse_date).days}'.zfill(3)
-    suffix = '' if days_ago == 1 else 's'
-    diff_msg = f'{days_ago} day{suffix} since previous parse date'
+      cursor.execute(f"""
+      select parse_date, requirement_text from requirement_blocks
+       where institution = '{new_row.institution}'
+         and requirement_id = '{new_row.requirement_id}'
+      """)
+      if cursor.rowcount == 0:
+        action.do_insert = True
+      else:
+        assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
+                                      f'{requirement_id}')
+        db_row = cursor.fetchone()
+        days_ago = f'{(parse_date - db_row.parse_date).days}'.zfill(3)
+        suffix = '' if days_ago == 1 else 's'
+        diff_msg = f'{days_ago} day{suffix} since previous parse date'
 
-    if db_row.requirement_text != requirement_text:
-      action.do_update = True
-      with open(f'history/{new_row.institution}_{new_row.requirement_id}_{parse_date}_'
-                f'{days_ago}', 'w') as _diff_file:
-        diff_lines = difflib.context_diff([f'{line}\n' for line in
-                                           db_row.requirement_text.split('\n')],
-                                          [f'{line}\n' for line in
-                                           requirement_text.split('\n')],
-                                          fromfile='previous', tofile='changed', n=0)
-        _diff_file.writelines(diff_lines)
+        if db_row.requirement_text != requirement_text:
+          action.do_update = True
+          with open(f'history/{new_row.institution}_{new_row.requirement_id}_{parse_date}_'
+                    f'{days_ago}', 'w') as _diff_file:
+            diff_lines = difflib.context_diff([f'{line}\n' for line in
+                                               db_row.requirement_text.split('\n')],
+                                              [f'{line}\n' for line in
+                                               requirement_text.split('\n')],
+                                              fromfile='previous', tofile='changed', n=0)
+            _diff_file.writelines(diff_lines)
 
-  if action.do_insert:
+      if action.do_insert:
 
-    db_record = DB_Record._make([new_row.institution,
-                                 new_row.requirement_id,
-                                 new_row.block_type,
-                                 new_row.block_value,
-                                 decruft(new_row.title),
-                                 new_row.period_start,
-                                 new_row.period_stop,
-                                 new_row.school,
-                                 new_row.degree,
-                                 new_row.college,
-                                 new_row.major1,
-                                 new_row.major2,
-                                 new_row.concentration,
-                                 new_row.minor,
-                                 new_row.liberal_learning,
-                                 new_row.specialization,
-                                 new_row.program,
-                                 new_row.parse_status,
-                                 parse_date,
-                                 new_row.parse_who,
-                                 new_row.parse_what,
-                                 new_row.lock_version,
-                                 requirement_text,
-                                 requirement_html,
-                                 empty_parse_tree,
-                                 irdw_load_date])
+        db_record = DB_Record._make([new_row.institution,
+                                     new_row.requirement_id,
+                                     new_row.block_type,
+                                     new_row.block_value,
+                                     decruft(new_row.title),
+                                     new_row.period_start,
+                                     new_row.period_stop,
+                                     new_row.school,
+                                     new_row.degree,
+                                     new_row.college,
+                                     new_row.major1,
+                                     new_row.major2,
+                                     new_row.concentration,
+                                     new_row.minor,
+                                     new_row.liberal_learning,
+                                     new_row.specialization,
+                                     new_row.program,
+                                     new_row.parse_status,
+                                     parse_date,
+                                     new_row.parse_who,
+                                     new_row.parse_what,
+                                     new_row.lock_version,
+                                     requirement_text,
+                                     requirement_html,
+                                     empty_parse_tree,
+                                     irdw_load_date])
 
-    vals = ', '.join([f"'{val}'" for val in db_record])
-    cursor.execute(f'insert into requirement_blocks ({",".join(db_cols)}) values ({vals})')
-    assert cursor.rowcount == 1, (f'Inserted {cursor.rowcount} rows\n{cursor.query}')
-    print(f'Inserted  {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-          f'{new_row.block_value} {new_row.period_stop}.', file=log_file)
-    conn.commit()
-    num_inserted += 1
+        vals = ', '.join([f"'{val}'" for val in db_record])
+        cursor.execute(f'insert into requirement_blocks ({",".join(db_cols)}) values ({vals})')
+        assert cursor.rowcount == 1, (f'Inserted {cursor.rowcount} rows\n{cursor.query}')
+        print(f'Inserted  {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+              f'{new_row.block_value} {new_row.period_stop}.', file=log_file)
+        conn.commit()
+        num_inserted += 1
 
-  elif action.do_update:
-    # Things that might have changed
-    update_dict = {'period_stop': new_row.period_stop,
-                   'parse_status': new_row.parse_status,
-                   'parse_date': parse_date,
-                   'parse_who': new_row.parse_who,
-                   'parse_what': new_row.parse_what,
-                   'lock_version': new_row.lock_version,
-                   'requirement_text': requirement_text,
-                   'requirement_html': requirement_html,
-                   'parse_tree': empty_parse_tree,
-                   'irdw_load_date': irdw_load_date,
-                   }
-    set_args = ','.join([f'{key}=%s' for key in update_dict.keys()])
-    cursor.execute(f"""
-    update requirement_blocks set {set_args}
-     where institution = %s and requirement_id = %s
-    """, ([v for v in update_dict.values()] + [new_row.institution, new_row.requirement_id]))
-    assert cursor.rowcount == 1, (f'Updated {cursor.rowcount} rows\n{cursor.query}')
-    print(f'Updated   {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-          f'{new_row.block_value} {new_row.period_stop}: {diff_msg}.', file=log_file)
-    conn.commit()
-    num_updated += 1
+      elif action.do_update:
+        # Things that might have changed
+        update_dict = {'period_stop': new_row.period_stop,
+                       'parse_status': new_row.parse_status,
+                       'parse_date': parse_date,
+                       'parse_who': new_row.parse_who,
+                       'parse_what': new_row.parse_what,
+                       'lock_version': new_row.lock_version,
+                       'requirement_text': requirement_text,
+                       'requirement_html': requirement_html,
+                       'parse_tree': empty_parse_tree,
+                       'irdw_load_date': irdw_load_date,
+                       }
+        set_args = ','.join([f'{key}=%s' for key in update_dict.keys()])
+        cursor.execute(f"""
+        update requirement_blocks set {set_args}
+         where institution = %s and requirement_id = %s
+        """, ([v for v in update_dict.values()] + [new_row.institution, new_row.requirement_id]))
+        assert cursor.rowcount == 1, (f'Updated {cursor.rowcount} rows\n{cursor.query}')
+        print(f'Updated   {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+              f'{new_row.block_value} {new_row.period_stop}: {diff_msg}.', file=log_file)
+        conn.commit()
+        num_updated += 1
 
-  else:
-    if args.log_unchanged:
-      print(f'No change {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-            f'{new_row.block_value}.', file=log_file)
+      else:
+        if args.log_unchanged:
+          print(f'No change {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+                f'{new_row.block_value}.', file=log_file)
 
-  if args.parse and (action.do_insert or action.do_update)\
-     and new_row.block_type in ['CONC', 'MAJOR', 'MINOR', 'OTHER'] \
-     and new_row.period_stop.startswith('9'):
-    parse_error = ' OK'
-    parse_tree = dgw_parser(new_row.institution, requirement_id=new_row.requirement_id,
-                            timelimit=int(args.timelimit))
-    if 'error' in parse_tree.keys():
-      parse_error = ': ' + parse_tree['error']
-    print(f'Parsed    {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-          f'{new_row.block_value} {new_row.period_stop}{parse_error}.', file=log_file)
+      if args.parse and (action.do_insert or action.do_update)\
+         and new_row.block_type in ['CONC', 'MAJOR', 'MINOR', 'OTHER'] \
+         and new_row.period_stop.startswith('9'):
+        parse_error = ' OK'
+        parse_tree = parse_block(new_row.institution, new_row.requirement_id,
+                                 new_row.period_start, new_row.period_stop,
+                                 new_row.requirement_text,
+                                 int(args.timelimit))
+        if 'error' in parse_tree.keys():
+          parse_error = ': ' + parse_tree['error']
+        print(f'Parsed    {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
+              f'{new_row.block_value} {new_row.period_stop}{parse_error}.', file=log_file)
 
-cursor.execute(f"""update updates
-                      set update_date = '{load_date}', file_name = '{file.name}'
-                    where table_name = 'requirement_blocks'""")
-conn.commit()
-conn.close()
+    cursor.execute(f"""update updates
+                          set update_date = '{load_date}', file_name = '{file.name}'
+                        where table_name = 'requirement_blocks'""")
 
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
@@ -373,7 +378,7 @@ os.utime(file, (mtime, mtime))
 if num_updated + num_inserted > 0:
   h, m = divmod((int(time.time()) - start_time), 3600)
   m, s = divmod(m, 60)
-  print(f'Elapsed time: {h}:{m:02}:{s:02}\n')
+  print(f'\nElapsed time: {h}:{m:02}:{s:02}\n')
   print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
   run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
 else:
