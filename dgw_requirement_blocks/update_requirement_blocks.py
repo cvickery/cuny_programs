@@ -244,7 +244,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
                  f'for {row.institution} {row.requirement_id}')
 
       row_num += 1
-      print(f'\r{row_num:7,}', end='')
+      # print(f'\r{row_num:7,}', end='')
       """ Determine the action to take.
             If args.parse, generate a new parse_tree, and update or insert as the case may be
             If this is a new block, do insert
