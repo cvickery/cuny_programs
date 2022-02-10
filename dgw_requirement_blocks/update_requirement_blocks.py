@@ -155,6 +155,7 @@ def xml_generator(file):
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--debug', action='store_true')
 parser.add_argument('-f', '--file', default='./downloads/dgw_dap_req_block.csv')
+parser.add_argument('-p', '--progress', action='store_true')
 parser.add_argument('--parse', dest='parse', action='store_true')
 parser.add_argument('--no_parse', dest='parse', action='store_false')
 parser.add_argument('--log_unchanged', action='store_true')
@@ -244,12 +245,15 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
                  f'for {row.institution} {row.requirement_id}')
 
       row_num += 1
-      # print(f'\r{row_num:7,}', end='')
+      if args.progress:
+        print(f'\r{row_num:7,}', end='')
+
       """ Determine the action to take.
             If args.parse, generate a new parse_tree, and update or insert as the case may be
             If this is a new block, do insert
             If this is an exisitng block and it has changed, do update
-            During development, if block exists, has not changed, but parse_date has changed, report it.
+            During development, if block exists, has not changed, but parse_date has changed, report
+            it.
       """
       action = Action()
       requirement_text = decruft(new_row.requirement_text)
@@ -382,7 +386,7 @@ if num_updated + num_inserted > 0:
   print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
   run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
 else:
-  print('No updated or new blocks found')
+  print('\nNo updated or new blocks found')
 
 h, m = divmod((int(time.time()) - start_time), 3600)
 m, s = divmod(m, 60)
