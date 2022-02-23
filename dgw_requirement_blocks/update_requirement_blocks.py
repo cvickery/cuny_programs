@@ -385,6 +385,12 @@ if num_updated + num_inserted > 0:
   print(f'\nElapsed time: {h}:{m:02}:{s:02}\n')
   print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
   run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
+  print('Run Course Mapper')
+  dgw_processor = Path('/Users/vickery/Projects/dgw_processor')
+  result = run([Path(dgw_processor, 'course_mapper.py'), '-i all', '-t all', '-v all'],
+               stdout=sys.stdout, stderr=sys.stderr)
+  if result.returncode != 0:
+    print('Course Mapper failed')
 else:
   print('\nNo updated or new blocks found')
 
