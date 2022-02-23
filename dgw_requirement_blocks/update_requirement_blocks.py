@@ -48,6 +48,7 @@ import json
 import os
 import psycopg
 import re
+import shutil
 import sys
 import time
 
@@ -387,10 +388,15 @@ if num_updated + num_inserted > 0:
   run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
   print('Run Course Mapper')
   dgw_processor = Path('/Users/vickery/Projects/dgw_processor')
-  result = run([Path(dgw_processor, 'course_mapper.py'), '-i all', '-t all', '-v all'],
+  csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
+  result = run([Path(dgw_processor, 'course_mapper.py'), '-i', 'all', '-t', 'all', '-v', 'all'],
                stdout=sys.stdout, stderr=sys.stderr)
   if result.returncode != 0:
     print('Course Mapper failed')
+  else:
+    mapper_files = Path(dgw_processor).glob('course_mapper.*csv')
+    for mapper_file in mapper_files:
+      shutil.copy2(mapper_file, csv_repository)
 else:
   print('\nNo updated or new blocks found')
 
