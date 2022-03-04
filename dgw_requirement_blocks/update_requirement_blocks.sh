@@ -70,13 +70,13 @@
                   (abs(($size_download - $size_latest) / $size_latest) > 0.1)" | bc` != 0 ]]
       then
            echo Notice from `hostname` > msg
-           printf "Downloaded size (%'d bytes) is over 10% different \n" $size_download >> msg
+           printf "Downloaded size (%'d bytes) is over 10%% different \n" $size_download >> msg
            printf "from latest archive size (%'d bytes).\n" $size_latest >> msg
            /Users/vickery/bin/sendemail -s "dgw_dap_req_block.csv download failed" \
            -t msg cvickery@qc.cuny.edu
            rm msg
 
-        printf "Downloaded size (%'d bytes) is over 10% different \n" $size_download 1>&2
+        printf "Downloaded size (%'d bytes) is over 10%% different \n" $size_download 1>&2
         printf "from latest archive size (%'d bytes).\n" $size_latest 1>&2
         ls -lh $latest_archive_file ./downloads
         if [[ -e $current_download_file ]]
