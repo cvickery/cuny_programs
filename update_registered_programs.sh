@@ -15,7 +15,7 @@ function restore_from_archive()
       exit 1
   fi
 }
-echo Start update_registered_programs.py on `hostname` at `date`
+echo Start update_registered_programs.sh on `hostname` at `date`
 export PYTHONPATH=/Users/vickery/Projects/transfer_app/:/Users/vickery/Projects/dgw_processor
 
 # Archive tables that might/will get clobbered.
@@ -83,4 +83,4 @@ done
 /usr/local/bin/psql cuny_curriculum -tqXc "update updates set update_date = '$update_date' \
                         where table_name = 'registered_programs'"
 
-echo End update_registered_programs.py at `date`
+echo End update_registered_programs.sh at `date`
