@@ -7,8 +7,7 @@
     Accept requirement block exports in either csv or xml format.
 
     2019-07-26
-    This version works with the CUNY-wide dgw_dap_req_block table maintained by OIRA, instead of the
-    separate tables used in requirement_blocks.py version (which supports only csv input).
+    This version works with the CUNY-wide dgw_dap_req_block table maintained by OIRA.
 
     CUNY Institutions Not In DegreeWorks
     GRD01 | The Graduate Center
@@ -385,18 +384,30 @@ if num_updated + num_inserted > 0:
   m, s = divmod(m, 60)
   print(f'\nElapsed time: {h}:{m:02}:{s:02}\n')
   print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
+  generate_start = time.time()
   run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
+  min, sec = divmod(int(round(time.time() - generate_start)), 60)
+  print(f'  {min} min {sec} sec')
+
+  # Create table of active programs for Course Mapper to reference
+  print('Build ra_counts table')
+  result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
+  if result.returncode != 0:
+    print('Build ra_counts FAILED!')
+
+  # Run the course mapper on all active requirement blocks
   print('Run Course Mapper')
   dgw_processor = Path('/Users/vickery/Projects/dgw_processor')
   csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
-  result = run([Path(dgw_processor, 'course_mapper.py'), '-i', 'all', '-t', 'all', '-v', 'all'],
+  result = run([Path(dgw_processor, 'course_mapper.py'), '-a'],
                stdout=sys.stdout, stderr=sys.stderr)
   if result.returncode != 0:
-    print('Course Mapper failed')
+    print('Course Mapper FAILED!')
   else:
     mapper_files = Path(dgw_processor).glob('course_mapper.*csv')
     for mapper_file in mapper_files:
       shutil.copy2(mapper_file, csv_repository)
+
 else:
   print('\nNo updated or new blocks found')
 
