@@ -67,7 +67,7 @@ def generate_html():
 
         if cursor.rowcount < 1:
           conn.close()
-          exit("There is no registered-program information for CUNY colleges available at this time")
+          exit("No registered-program information for CUNY colleges available at this time")
 
         cuny_institutions = dict([(row.inst, {'name': row.name})
                                  for row in cursor.fetchall()])
@@ -88,8 +88,8 @@ def generate_html():
         for row in cursor.fetchall():
           short_names[row.code.lower()[0:3]] = row.prompt
 
-        # Generate the HTML and CSV values for each row of the respective tables, and save them in the
-        # registered_programs table as html and csv column data.
+        # Generate the HTML and CSV values for each row of the respective tables, and save them in
+        # the registered_programs table as html and csv column data.
         cursor.execute("""
                        select program_code,
                               unit_code,
