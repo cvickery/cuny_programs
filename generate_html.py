@@ -174,7 +174,7 @@ def generate_html():
                 program_info[institution_key] = Program_Info._make([plan.academic_plan,
                                                                     plan.description,
                                                                     []
-                                                                   ])
+                                                                    ])
               program_info[institution_key].departments.append(plan.department)
 
             # Add information for this institution to the table cell
@@ -195,7 +195,8 @@ def generate_html():
               else:
                 inst_str = ''
               departments_str = andor_list(program_info[inst].departments)
-              cuny_cell_html_content += f' {inst_str}{program} ({departments_str})<br>{program_title}'
+              cuny_cell_html_content += (f' {inst_str}{program} ({departments_str})'
+                                         f'<br>{program_title}')
               cuny_cell_csv_content += f'{inst_str}{program} ({departments_str})\n{program_title}'
               # If there is a dgw requirement block for the plan, use link to it
               institution = row.institution
@@ -219,7 +220,8 @@ def generate_html():
               if show_institution:
                 cuny_cell_html_content += '<br>'
                 cuny_cell_csv_content += '\n'
-          cip_html_cell = [f'<span title="{cip_codes(cip)}">{cip}</span>' for cip in sorted(cip_set)]
+          cip_html_cell = [f'<span title="{cip_codes(cip)}">{cip}</span>'
+                           for cip in sorted(cip_set)]
           cip_csv_cell = [f'{cip} ({cip_codes(cip).strip(".")})' for cip in sorted(cip_set)]
           html_values.insert(7, '<br>'.join(cip_html_cell))
           csv_values.insert(7, ', '.join(cip_csv_cell))
@@ -237,7 +239,6 @@ def generate_html():
                               where target_institution = %s
                                 and program_code = %s
                            """, (json.dumps(csv_values), row.target_institution, row.program_code))
-
 
 
 if __name__ == '__main__':
