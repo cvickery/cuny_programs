@@ -379,38 +379,39 @@ mtime = time.mktime(irdw_load_date.timetuple())
 os.utime(file, (mtime, mtime))
 
 # Regenerate program CSV and HTML files
-if num_updated + num_inserted > 0:
-  h, m = divmod((int(time.time()) - start_time), 3600)
-  m, s = divmod(m, 60)
-  print(f'\nElapsed time: {h}:{m:02}:{s:02}\n')
-  print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
-  generate_start = time.time()
-  run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
-  min, sec = divmod(int(round(time.time() - generate_start)), 60)
-  print(f'  {min} min {sec} sec')
-
-  # Create table of active programs for Course Mapper to reference
-  print('Build ra_counts table')
-  result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
-  if result.returncode != 0:
-    print('Build ra_counts FAILED!')
-
-  # Run the course mapper on all active requirement blocks
-  print('Run Course Mapper')
-  dgw_processor = Path('/Users/vickery/Projects/dgw_processor')
-  csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
-  result = run([Path(dgw_processor, 'course_mapper.py'), '-a'],
-               stdout=sys.stdout, stderr=sys.stderr)
-  if result.returncode != 0:
-    print('Course Mapper FAILED!')
-  else:
-    mapper_files = Path(dgw_processor).glob('course_mapper.*csv')
-    for mapper_file in mapper_files:
-      shutil.copy2(mapper_file, csv_repository)
-
-else:
+if num_updated + num_inserted == 0:
   print('\nNo updated or new blocks found')
 
-h, m = divmod((int(time.time()) - start_time), 3600)
-m, s = divmod(m, 60)
-print(f'Total time: {h}:{m:02}:{s:02}\n')
+m, s = divmod(time.time() - start_time, 60)
+h, m = divmod(m, 60)
+print(f'\nElapsed time: {h:02}:{m:02}:{round(s):02}\n')
+
+print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
+generate_start = time.time()
+run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
+min, sec = divmod(int(round(time.time() - generate_start)), 60)
+print(f'  {min} min {sec} sec')
+
+# Create table of active programs for Course Mapper to reference
+print('Build ra_counts table')
+result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
+if result.returncode != 0:
+  print('Build ra_counts FAILED!')
+
+# Run the course mapper on all active requirement blocks
+print('Run Course Mapper')
+dgw_processor = Path('/Users/vickery/Projects/dgw_processor')
+csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
+result = run([Path(dgw_processor, 'course_mapper.py'), '-a'],
+             stdout=sys.stdout, stderr=sys.stderr)
+if result.returncode != 0:
+  print('Course Mapper FAILED!')
+else:
+  mapper_files = Path(dgw_processor).glob('course_mapper.*csv')
+  for mapper_file in mapper_files:
+    shutil.copy2(mapper_file, csv_repository)
+
+
+m, s = divmod(time.time() - start_time, 60)
+h, m = divmod(m, 60)
+print(f'Total time: {h:02}:{m:02}:{round(s):02}\n')

@@ -10,7 +10,7 @@ from sendemail import send_message
 
 # Be sure the NYSED website is accessible before proceeding.
 try:
-  r = requests.get('http://www.nysed.gov/college-university-evaluation/'
+  r = requests.get('http://nysed.gov/college-university-evaluation/'
                    'new-york-state-taxonomy-academic-programs-hegis-codes').text
 except requests.exceptions.ConnectionError as err:
   send_message([{'name': 'Christopher Vickery', 'email': 'cvickery@qc.cuny.edu'}],

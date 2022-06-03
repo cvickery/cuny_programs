@@ -15,3 +15,11 @@ archives/
 downloads/
 history/
 queries/
+/dgw_requirement_blocks/analysis.txt
+/dgw_requirement_blocks/blocks.txt
+/dgw_requirement_blocks/debug.txt
+/dgw_requirement_blocks/fail.txt
+/dgw_requirement_blocks/log.txt
+/dgw_requirement_blocks/no_courses.txt
+/dgw_requirement_blocks/relop_expressions.txt
+/dgw_requirement_blocks/todo.txt

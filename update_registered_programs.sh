@@ -30,7 +30,7 @@ echo -n 'Recreate CIP Codes table ... '
 ./cipcodes.py
 if [[ $? != 0 ]]
 then echo 'FAILED!'
-     exit 1
+     restore_from archives cip_codes
 else echo 'done.'
 fi
 
@@ -39,7 +39,7 @@ echo -n 'Update NYS HEGIS Codes ... '
 ./hegis_codes.py
 if [[ $? != 0 ]]
 then echo 'FAILED!'
-     exit 1
+     restore_from_archive hegis_codes
 else echo 'done.'
 fi
 
