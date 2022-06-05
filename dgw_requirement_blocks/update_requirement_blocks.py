@@ -384,7 +384,7 @@ if num_updated + num_inserted == 0:
 
 m, s = divmod(time.time() - start_time, 60)
 h, m = divmod(m, 60)
-print(f'\nElapsed time: {h:02}:{m:02}:{round(s):02}\n')
+print(f'\nElapsed time: {int(h):02}:{int(m):02}:{round(s):02}\n')
 
 print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
 generate_start = time.time()
@@ -414,4 +414,4 @@ else:
 
 m, s = divmod(time.time() - start_time, 60)
 h, m = divmod(m, 60)
-print(f'Total time: {h:02}:{m:02}:{round(s):02}\n')
+print(f'Total time: {int(h):02}:{int(m):02}:{round(s):02}\n')
