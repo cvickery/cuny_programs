@@ -170,13 +170,18 @@ if args.debug:
   DEBUG = True
 
 hostname = os.uname().nodename
-print(f'Updating requirement blocks on {hostname}')
+
+print(f'{sys.argv[0]} on {hostname} at '
+      f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
+
 if hostname.lower().endswith('cuny.edu'):
   if not args.skip_tumbleweed:
     print('Get latest requirement blocks from Tumbleweed')
     update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stderr)
     if update_result.returncode != 0:
       print('Tumbleweed download FAILED.')
+else:
+  print(f'Tumbleweed not available from {hostname}')
 
 
 db_cols = ['institution', 'requirement_id', 'block_type', 'block_value', 'title', 'period_start',

@@ -7,7 +7,7 @@
 (
   # Be sure we are in the correct place in the filesystsm
   cd /Users/vickery/Projects/cuny_programs/dgw_requirement_blocks
-
+  echo $0 at `date`
   # Where the latest download will appear
   export current_download_file='./downloads/dgw_dap_req_block.csv'
 
