@@ -64,8 +64,8 @@
     if [[ -e $current_download_file ]]
     then
       # Must use GNU stat to use '-c %s' to get the size of the file in bytes
-      size_download=`gstat -c %s $current_download_file`
-      size_latest=`gstat -c %s $latest_archive_file`
+      size_download=`/usr/local/bin/gstat -c %s $current_download_file`
+      size_latest=`/usr/local/bin/gstat -c %s $latest_archive_file`
       if [[ `echo "define abs(x) {if (x < 0) return (-x) else return (x)}; scale=6; \
                   (abs(($size_download - $size_latest) / $size_latest) > 0.1)" | bc` != 0 ]]
       then
