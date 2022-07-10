@@ -208,6 +208,7 @@ if not file.exists():
     sys.exit(f'{file} does not exist, and no archive found')
   file = latest
   from_archive = True
+  file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
 
 if file.suffix.lower() == '.xml':
   generator = xml_generator
@@ -242,9 +243,9 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
         irdw_load_date = load_date
         log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'a')
         if from_archive:
-          print(f'Using {file} from archive')
+          print(f'Using {file} with irdw_load_date {load_date} from archive')
         else:
-          print(f'Using {file} {load_date}')
+          print(f'Using {file} {file_date} with irdw_load_date {load_date}')
       if irdw_load_date != load_date:
         sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
                  f'for {row.institution} {row.requirement_id}')
