@@ -196,7 +196,9 @@ DB_Record = namedtuple('DB_Record', db_cols)
 
 file = Path(args.file)
 from_archive = False
-if not file.exists():
+if file.exists():
+  file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
+else:
   # Try the latest archived version
   archives_dir = Path('/Users/vickery/Projects/CUNY_Programs/dgw_requirement_blocks/archives')
   archives = archives_dir.glob('dgw_dap_req_block*.csv')
