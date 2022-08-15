@@ -359,7 +359,10 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 
       elif action.do_update:
         # Things that might have changed
-        update_dict = {'period_start': new_row.period_start,
+        update_dict = {'block_type': new_row.block_type,
+                       'block_value': new_row.block_value,
+                       'title': decruft(new_row.title)
+                       'period_start': new_row.period_start,
                        'period_stop': new_row.period_stop,
                        'parse_status': new_row.parse_status,
                        'parse_date': parse_date,
