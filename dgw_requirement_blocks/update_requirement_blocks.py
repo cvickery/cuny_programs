@@ -312,8 +312,12 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 
         # Log metadata changes and trigger update
         for item in ['block_type', 'block_value', 'period_start', 'period_stop', 'parse_date']:
-          old_value = exec(f'db_row.{item}')
-          new_value = exec(f'new_row.{item}')
+          if item == 'parse_date':
+            old_value = db_row.parse_date
+            new_value = parse_date
+          else:
+            exec(f'old_value = db_row.{item}')
+            exec(f'new_value = new_row.{item}')
           if old_value != new_value:
             action.do_update = True
             print(f'{new_row.institution} {new_row.requirement_id} {item}: {old_value}:{new_value}',
@@ -361,7 +365,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
         # Things that might have changed
         update_dict = {'block_type': new_row.block_type,
                        'block_value': new_row.block_value,
-                       'title': decruft(new_row.title)
+                       'title': decruft(new_row.title),
                        'period_start': new_row.period_start,
                        'period_stop': new_row.period_stop,
                        'parse_status': new_row.parse_status,
@@ -417,7 +421,10 @@ if file.parent.name != 'archives':
 mtime = time.mktime(irdw_load_date.timetuple())
 os.utime(file, (mtime, mtime))
 
-print(f'\nEnd {file.name}')
+# Summarize activity
+m, s = divmod(time.time() - start_time, 60)
+h, m = divmod(m, 60)
+print(f'\nEnd {file.name}\nElapsed time: {int(h):02}:{int(m):02}:{round(s):02}\n')
 if num_updated + num_inserted == 0:
   print('\nNo updated or new blocks found')
 else:
@@ -426,11 +433,7 @@ else:
         f'{num_parsed:6,} Blocks Parsed')
 
 # Regenerate program CSV and HTML files
-m, s = divmod(time.time() - start_time, 60)
-h, m = divmod(m, 60)
-print(f'\nElapsed time: {int(h):02}:{int(m):02}:{round(s):02}\n')
-
-print(f'Inserted: {num_inserted}\nUpdated: {num_updated}\nRegenerating CSV and HTML')
+print('\nRegenerating CSV and HTML')
 generate_start = time.time()
 run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
 min, sec = divmod(int(round(time.time() - generate_start)), 60)
