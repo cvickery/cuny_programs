@@ -222,7 +222,10 @@ else:
 start_time = int(time.time())
 empty_parse_tree = json.dumps({})
 irdw_load_date = None
-num_inserted = num_updated = 0
+num_rows = num_inserted = num_updated = num_parsed = 0
+
+for row in generator(file):
+  num_rows += 1
 
 with psycopg.connect('dbname=cuny_curriculum') as conn:
   with conn.cursor(row_factory=namedtuple_row) as cursor:
@@ -243,7 +246,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
         sys.exit(f'Unrecognized load date format: {load_date}')
       if irdw_load_date is None:
         irdw_load_date = load_date
-        log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'a')
+        log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'w')
         if from_archive:
           print(f'Using {file} with irdw_load_date {load_date} from archive')
         else:
@@ -254,7 +257,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 
       row_num += 1
       if args.progress:
-        print(f'\r{row_num:7,}', end='')
+        print(f'\r{row_num:,}/{num_rows:,}', end='')
 
       """ Determine the action to take.
             If args.parse, generate a new parse_tree, and update or insert as the case may be
@@ -268,8 +271,11 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
       requirement_html = to_html(requirement_text)
       parse_date = datetime.date.fromisoformat(new_row.parse_date)
 
+      # Check for changes in the data and metadata items that we use.
+      changes_str = ''
       cursor.execute(f"""
-      select parse_date, requirement_text from requirement_blocks
+      select block_type, block_value, period_start, period_stop, parse_date, requirement_text
+        from requirement_blocks
        where institution = '{new_row.institution}'
          and requirement_id = '{new_row.requirement_id}'
       """)
@@ -279,21 +285,41 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
         assert cursor.rowcount == 1, (f'Error: {cursor.rowcount} rows for {institution} '
                                       f'{requirement_id}')
         db_row = cursor.fetchone()
+
+        # Record history of changes in the Scribe block itself
         days_ago = f'{(parse_date - db_row.parse_date).days}'.zfill(3)
-        suffix = '' if days_ago == 1 else 's'
-        diff_msg = f'{days_ago} day{suffix} since previous parse date'
+        s = '' if days_ago == 1 else 's'
+        diff_msg = f'{days_ago} day{s} since previous parse date'
 
         if db_row.requirement_text != requirement_text:
+          db_lines = db_row.requirement_text.split('\n')
+          new_lines = requirement_text.split('\n')
+          prev_len = len(db_lines)
+          new_len = len(new_lines)
+          if prev_len < new_len:
+            changes_str = f'{new_len - prev_len} lines longer.'
+          elif (new_len < prev_len):
+            changes_str = f'{prev_len - new_len} lines shorter.'
+          else:
+            changes_str = f'{prev_len:,} lines.'
           action.do_update = True
           with open(f'history/{new_row.institution}_{new_row.requirement_id}_{parse_date}_'
                     f'{days_ago}', 'w') as _diff_file:
-            diff_lines = difflib.context_diff([f'{line}\n' for line in
-                                               db_row.requirement_text.split('\n')],
-                                              [f'{line}\n' for line in
-                                               requirement_text.split('\n')],
+            diff_lines = difflib.context_diff([f'{line}\n' for line in db_lines],
+                                              [f'{line}\n' for line in new_lines],
                                               fromfile='previous', tofile='changed', n=0)
             _diff_file.writelines(diff_lines)
 
+        # Log metadata changes and trigger update
+        for item in ['block_type', 'block_value', 'period_start', 'period_stop', 'parse_date']:
+          old_value = exec(f'db_row.{item}')
+          new_value = exec(f'new_row.{item}')
+          if old_value != new_value:
+            action.do_update = True
+            print(f'{new_row.institution} {new_row.requirement_id} {item}: {old_value}:{new_value}',
+                  file=log_file)
+
+      # Insert or update the requirement_block as the case may be
       if action.do_insert:
 
         db_record = DB_Record._make([new_row.institution,
@@ -333,7 +359,8 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 
       elif action.do_update:
         # Things that might have changed
-        update_dict = {'period_stop': new_row.period_stop,
+        update_dict = {'period_start': new_row.period_start,
+                       'period_stop': new_row.period_stop,
                        'parse_status': new_row.parse_status,
                        'parse_date': parse_date,
                        'parse_who': new_row.parse_who,
@@ -350,8 +377,8 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
          where institution = %s and requirement_id = %s
         """, ([v for v in update_dict.values()] + [new_row.institution, new_row.requirement_id]))
         assert cursor.rowcount == 1, (f'Updated {cursor.rowcount} rows\n{cursor.query}')
-        print(f'Updated   {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-              f'{new_row.block_value} {new_row.period_stop}: {diff_msg}.', file=log_file)
+        print(f'Updated   {new_row.institution} {new_row.requirement_id} {changes_str}.',
+              file=log_file)
         conn.commit()
         num_updated += 1
 
@@ -370,6 +397,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
                                  int(args.timelimit))
         if 'error' in parse_tree.keys():
           parse_error = ': ' + parse_tree['error']
+        num_parsed += 1
         print(f'Parsed    {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
               f'{new_row.block_value} {new_row.period_stop}{parse_error}.', file=log_file)
 
@@ -386,10 +414,15 @@ if file.parent.name != 'archives':
 mtime = time.mktime(irdw_load_date.timetuple())
 os.utime(file, (mtime, mtime))
 
-# Regenerate program CSV and HTML files
+print(f'\nEnd {file.name}')
 if num_updated + num_inserted == 0:
   print('\nNo updated or new blocks found')
+else:
+  print(f'{num_inserted:6,} Blocks Inserted\n'
+        f'{num_updated:6,} Blocks Updated\n'
+        f'{num_parsed:6,} Blocks Parsed')
 
+# Regenerate program CSV and HTML files
 m, s = divmod(time.time() - start_time, 60)
 h, m = divmod(m, 60)
 print(f'\nElapsed time: {int(h):02}:{int(m):02}:{round(s):02}\n')
