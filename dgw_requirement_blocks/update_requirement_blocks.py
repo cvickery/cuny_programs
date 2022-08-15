@@ -104,8 +104,6 @@ def decruft(block):
 def csv_generator(file):
   """ Generate rows from a csv export of OIRA’s DAP_REQ_BLOCK table.
   """
-  num_rows = open(file).readlines().count('\n')
-  print(f'{num_rows:,} rows')
   cols = None
   with open(file, newline='') as query_file:
     reader = csv.reader(query_file,
