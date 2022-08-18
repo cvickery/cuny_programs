@@ -426,9 +426,12 @@ print(f'\nEnd {file.name}\nElapsed time: {int(h):02}:{int(m):02}:{round(s):02}\n
 if num_updated + num_inserted == 0:
   print('\nNo updated or new blocks found')
 else:
-  print(f'{num_inserted:6,} Blocks Inserted\n'
-        f'{num_updated:6,} Blocks Updated\n'
-        f'{num_parsed:6,} Blocks Parsed')
+  s = '' if num_inserted == 1 else 's'
+  print(f'{num_inserted:6,} Block{s} Inserted')
+  s = '' if num_updated == 1 else 's'
+  print(f'{num_updated:6,} Block{s} Updated')
+  s = '' if num_parsed == 1 else 's'
+  print(f'{num_parsed:6,} Block{s} Parsed')
 
 # Regenerate program CSV and HTML files
 print('\nRegenerating CSV and HTML')
