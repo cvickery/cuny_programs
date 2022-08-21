@@ -23,3 +23,5 @@ queries/
 /dgw_requirement_blocks/no_courses.txt
 /dgw_requirement_blocks/relop_expressions.txt
 /dgw_requirement_blocks/todo.txt
+/dgw_requirement_blocks/anomalies.txt
+/dgw_requirement_blocks/missing_ra.txt
