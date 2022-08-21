@@ -54,6 +54,7 @@ import time
 from collections import namedtuple
 from pathlib import Path
 from psycopg.rows import namedtuple_row
+from quarantine_manager import QuarantineManager
 from subprocess import run
 from types import SimpleNamespace
 from xml.etree.ElementTree import parse
@@ -225,6 +226,10 @@ num_rows = num_inserted = num_updated = num_parsed = 0
 for row in generator(file):
   num_rows += 1
 
+# Here begins the actual update process
+
+quarantine_manager = QuarantineManager()
+
 with psycopg.connect('dbname=cuny_curriculum') as conn:
   with conn.cursor(row_factory=namedtuple_row) as cursor:
     # Process the dgw_dap_req_block file
@@ -392,19 +397,29 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
           print(f'No change {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
                 f'{new_row.block_value}.', file=log_file)
 
+      # (Re-)parse if not suppressed
       if args.parse and (action.do_insert or action.do_update)\
          and new_row.block_type in ['CONC', 'MAJOR', 'MINOR', 'OTHER'] \
          and new_row.period_stop.startswith('9'):
-        parse_error = ' OK'
+        parse_outcome = ' OK'
         parse_tree = parse_block(new_row.institution, new_row.requirement_id,
                                  new_row.period_start, new_row.period_stop,
                                  new_row.requirement_text,
                                  int(args.timelimit))
+        quarantine_key = (new_row.institution, new_row.requirement_id)
         if 'error' in parse_tree.keys():
-          parse_error = ': ' + parse_tree['error']
+          reason = parse_tree['error']
+          parse_outcome = f': {reason}'
+          if not quarantine_manager.is_quarantined(quarantine_key):
+            quarantine_manager[quarantine_key] = [reason, 'unknown']
+        else:
+          # No error and it was previously quarantined, release it
+          if quarantine_manager.is_quarantined(quarantine_key):
+            del quarantine_manager[quarantine_key]
+
         num_parsed += 1
         print(f'Parsed    {new_row.institution} {new_row.requirement_id} {new_row.block_type} '
-              f'{new_row.block_value} {new_row.period_stop}{parse_error}.', file=log_file)
+              f'{new_row.block_value} {new_row.period_stop}{parse_outcome}.', file=log_file)
 
     cursor.execute(f"""update updates
                           set update_date = '{load_date}', file_name = '{file.name}'
@@ -440,7 +455,12 @@ run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
 min, sec = divmod(int(round(time.time() - generate_start)), 60)
 print(f'  {min} min {sec} sec')
 
+# Update quarantined list in case updates fixed any.
+print('\nUpdate quarantined list')
+run(['../../dgw_processor/parse_quarantined.py'], stdout=sys.stdout, stderr=sys.stderr)
+
 # Create table of active programs for Course Mapper to reference
+# (NO LONGER NEEDED after ~2022-08-20)
 print('Build ra_counts table')
 result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
 if result.returncode != 0:
