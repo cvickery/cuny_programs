@@ -4,6 +4,7 @@
 """
 
 import csv
+import datetime
 import os
 import psycopg
 import sys
@@ -22,10 +23,13 @@ if __name__ == '__main__':
       latest_active = active
   if latest_active is None:
     exit('No active_requirements files found')
+  file_date = datetime.date.fromtimestamp(latest_active.stat().st_mtime)
+  print(f'Using {latest_active.name} {file_date}')
 
   # (Re-)create the table of students per active term for active requirement blocks.
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as cursor:
+
       cursor.execute("""
       drop table if exists ra_counts;
 
@@ -37,13 +41,14 @@ if __name__ == '__main__':
       foreign key (institution, requirement_id) references requirement_blocks,
       primary key (institution, requirement_id, active_term));
       """)
+
       cursor.execute("""
       select institution, requirement_id
         from requirement_blocks
        where period_stop ~* '^9'
        """)
       active_blocks = [(row.institution, row.requirement_id) for row in cursor]
-
+      print(f'{len(active_blocks):,} active blocks')
       with open(latest_active, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter='|')
         for line in reader:
