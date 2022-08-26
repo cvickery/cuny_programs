@@ -427,6 +427,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
+  print(f'Archive the download from {file.parent.name} to archives')
   file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
 
@@ -454,6 +455,10 @@ generate_start = time.time()
 run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
 min, sec = divmod(int(round(time.time() - generate_start)), 60)
 print(f'  {min} min {sec} sec')
+
+# Run timeouts in case updates encountered any.
+print('\nParse timeouts')
+run(['../../dgw_processor/parse_timeouts.py'], stdout=sys.stdout, stderr=sys.stderr)
 
 # Update quarantined list in case updates fixed any.
 print('\nUpdate quarantined list')
