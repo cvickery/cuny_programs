@@ -25,14 +25,15 @@ then echo Archive existing tables FAILED
      exit 1
 fi
 
-# Copy IPEDS CIP codes to the cip_codes table.
-echo -n 'Recreate CIP Codes table ... '
-./mk_cipcodes.py
-if [[ $? != 0 ]]
-then echo 'FAILED!'
-     restore_from archives cip_codes
-else echo 'done.'
-fi
+# CIP Codes now come from CUNYfirst as part of the cuny_curriculum update process.
+# # Copy IPEDS CIP codes to the cip_codes table.
+# echo -n 'Recreate CIP Codes table ... '
+# ./mk_cipcodes.py
+# if [[ $? != 0 ]]
+# then echo 'FAILED!'
+#      restore_from archives cip_codes
+# else echo 'done.'
+# fi
 
 # Get latest HEGIS code list from NYS and rebuild the hegis_area and hegis_codes tables.
 echo -n 'Update NYS HEGIS Codes ... '

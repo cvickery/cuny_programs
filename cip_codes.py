@@ -7,7 +7,7 @@ from psycopg.rows import namedtuple_row
 # Module initialization
 with psycopg.connect('dbname=cuny_curriculum') as conn:
   with conn.cursor(row_factory=namedtuple_row) as cursor:
-    cursor.execute('select cip_code, cip_title from cipcodes')
+    cursor.execute('select cip_code, long_descr as cip_title from cuny_cip_code_tbl')
     _cip_codes = {cip.cip_code: cip.cip_title for cip in cursor.fetchall()}
 
 
