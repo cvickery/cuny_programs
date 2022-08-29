@@ -27,7 +27,7 @@ fi
 
 # Copy IPEDS CIP codes to the cip_codes table.
 echo -n 'Recreate CIP Codes table ... '
-./cipcodes.py
+./mk_cipcodes.py
 if [[ $? != 0 ]]
 then echo 'FAILED!'
      restore_from archives cip_codes

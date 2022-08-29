@@ -1,14 +1,14 @@
 """ DB lookup of CIP code info from database.
 """
 
-from pgconnection import PgConnection
+import psycopg
+from psycopg.rows import namedtuple_row
 
 # Module initialization
-conn = PgConnection()
-cursor = conn.cursor()
-cursor.execute('select cip_code, cip_title from cipcodes')
-_cip_codes = {cip.cip_code: cip.cip_title for cip in cursor.fetchall()}
-conn.close()
+with psycopg.connect('dbname=cuny_curriculum') as conn:
+  with conn.cursor(row_factory=namedtuple_row) as cursor:
+    cursor.execute('select cip_code, cip_title from cipcodes')
+    _cip_codes = {cip.cip_code: cip.cip_title for cip in cursor.fetchall()}
 
 
 def cip_codes(cip_code: str) -> str:
