@@ -5,8 +5,7 @@
 today=`date +%Y-%m-%d`
 unset failure
 
-for table in cip_codes \
-hegis_areas \
+for table in hegis_areas \
 hegis_codes \
 nys_institutions \
 registered_programs \

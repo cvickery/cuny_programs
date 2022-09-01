@@ -54,8 +54,8 @@ then echo 'FAILED!'
 else echo 'done.'
 fi
 
-
 # Update the registered_programs table
+# -------------------------------------------------------------------------------------------------
 
 # Create the table if it does not exist yet.
 /usr/local/bin/psql cuny_curriculum -tqXc \
