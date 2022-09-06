@@ -478,8 +478,9 @@ csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
 result = run([Path(dgw_processor, 'course_mapper.py'), '-a'],
              stdout=sys.stdout, stderr=sys.stderr)
 if result.returncode != 0:
-  print('Course Mapper FAILED!')
+  print('Mapper FAILED!')
 else:
+  print('Copying Mapper results to transfer_app/static/csv/')
   mapper_files = Path(dgw_processor).glob('course_mapper.*csv')
   for mapper_file in mapper_files:
     shutil.copy2(mapper_file, csv_repository)
