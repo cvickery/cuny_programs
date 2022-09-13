@@ -204,19 +204,29 @@ def generate_html():
                                  select *
                                    from requirement_blocks
                                   where institution ~* %s
+                                    and block_type = 'MAJOR'
                                     and block_value = %s
+                                    and period_stop ~* '^9'
                                  """, (institution, plan.academic_plan))
+              # Can only link to a single RA for a major from here. Log multiple-RA instances.
               if plan_cursor.rowcount > 0:
-                cuny_cell_html_content += (f'<br><a href="/requirements/?college='
-                                           f'{institution.upper() + "01"}'
-                                           f'&requirement-type=MAJOR&requirement-name={program}">'
-                                           f'Requirements</a>')
-                # IDEALLY the host would automatically adjust to the deployment target
-                # (ra.qc.cuny.edu, Heroku, or Lehman, etc). But it's hard-coded here ... for now.
-                host = 'transfer-app.qc.cuny.edu'
-                cuny_cell_csv_content += (f'\nhttps://{host}/requirements/?college='
-                                          f'{institution.upper() + "01"}'
-                                          f'&requirement-type=MAJOR&requirement-name={program}')
+                if plan_cursor.rowcount == 1:
+                  plan_row = plan_cursor.fetchone()
+                  cuny_cell_html_content += (f'<br><a href="/requirements/?institution='
+                                             f'{institution.upper() + "01"}'
+                                             f'&requirement_id={plan_row.requirement_id}">'
+                                             f'Requirements</a>')
+                  # IDEALLY the host would automatically adjust to the deployment target
+                  # (ra.qc.cuny.edu, Heroku, or Lehman, etc). But it's hard-coded here ... for now.
+                  host = 'transfer-app.qc.cuny.edu'
+                  cuny_cell_csv_content += (f'\nhttps://{host}/requirements/?institution='
+                                            f'{institution.upper() + "01"}'
+                                            f'&requirement_id={plan_row.requirement_id}')
+                else:
+                  # Note the occurrence of multiple current RA's for this program
+                  with open('/Users/vickery/Projects/transfer_app/transfer_app.log', 'a') as logs:
+                    print(f'Found {plan_cursor.rowcount} current RA’s for '
+                          f'{institution}, {plan.academic_plan}', file=logs)
               if show_institution:
                 cuny_cell_html_content += '<br>'
                 cuny_cell_csv_content += '\n'
