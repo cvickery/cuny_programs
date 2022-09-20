@@ -155,6 +155,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--debug', action='store_true')
 parser.add_argument('-f', '--file', default='./downloads/dgw_dap_req_block.csv')
 parser.add_argument('-p', '--progress', action='store_true')
+parser.add_argument('-t', '--timing', action='store_true')
 parser.add_argument('--parse', dest='parse', action='store_true')
 parser.add_argument('--no_parse', dest='parse', action='store_false')
 parser.add_argument('--log_unchanged', action='store_true')
@@ -178,7 +179,7 @@ if hostname.lower().endswith('cuny.edu'):
     print('Get latest requirement blocks from Tumbleweed')
     update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stderr)
     if update_result.returncode != 0:
-      print('Tumbleweed download FAILED.')
+      print('  Tumbleweed download FAILED.')
 else:
   print(f'Tumbleweed not available from {hostname}')
 
@@ -265,7 +266,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
       """ Determine the action to take.
             If args.parse, generate a new parse_tree, and update or insert as the case may be
             If this is a new block, do insert
-            If this is an exisitng block and it has changed, do update
+            If this is an existing block and it has changed, do update
             During development, if block exists, has not changed, but parse_date has changed, report
             it.
       """
@@ -427,7 +428,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
-  print(f'Archive the download from {file.parent.name} to archives')
+  print(f'Archive {file.parent.name} to archives')
   file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
 
@@ -435,12 +436,9 @@ if file.parent.name != 'archives':
 mtime = time.mktime(irdw_load_date.timetuple())
 os.utime(file, (mtime, mtime))
 
-# Summarize activity
-m, s = divmod(time.time() - start_time, 60)
-h, m = divmod(m, 60)
-print(f'\nEnd {file.name}\nElapsed time: {int(h):02}:{int(m):02}:{round(s):02}\n')
+# Summarize DAP_REQ_BLOCK processing
 if num_updated + num_inserted == 0:
-  print('\nNo updated or new blocks found')
+  print('No updated or new blocks found')
 else:
   s = '' if num_inserted == 1 else 's'
   print(f'{num_inserted:6,} Block{s} Inserted')
@@ -449,42 +447,63 @@ else:
   s = '' if num_parsed == 1 else 's'
   print(f'{num_parsed:6,} Block{s} Parsed')
 
+if args.timing:
+  m, s = divmod(int(round(time.time())) - start_time, 60)
+  h, m = divmod(m, 60)
+  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
+
 # Regenerate program CSV and HTML files
-print('\nRegenerating CSV and HTML')
-generate_start = time.time()
+print('Regenerate CSV and HTML')
+substep_start = time.time()
 run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
-min, sec = divmod(int(round(time.time() - generate_start)), 60)
-print(f'  {min} min {sec} sec')
+if args.timing:
+  m, s = divmod(int(round(time.time() - substep_start)), 60)
+  h, m = divmod(m, 60)
+  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
 # Run timeouts in case updates encountered any.
 print('\nParse timeouts')
+substep_start = time.time()
 run(['../../dgw_processor/parse_timeouts.py'], stdout=sys.stdout, stderr=sys.stderr)
+if args.timing:
+  m, s = divmod(int(round(time.time() - substep_start)), 60)
+  h, m = divmod(m, 60)
+  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
 # Update quarantined list in case updates fixed any.
-print('\nUpdate quarantined list')
+print('Update quarantined list')
+substep_start = time.time()
 run(['../../dgw_processor/parse_quarantined.py'], stdout=sys.stdout, stderr=sys.stderr)
+if args.timing:
+  m, s = divmod(int(round(time.time() - substep_start)), 60)
+  h, m = divmod(m, 60)
+  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
 # Create table of active programs for Course Mapper to reference
 # (NO LONGER NEEDED after ~2022-08-20)
-print('Build ra_counts table')
-result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
-if result.returncode != 0:
-  print('Build ra_counts FAILED!')
+# print('Build ra_counts table')
+# result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
+# if result.returncode != 0:
+#   print('Build ra_counts FAILED!')
 
 # Run the course mapper on all active requirement blocks
 print('Run Course Mapper')
+substep_start = time.time()
 dgw_processor = Path('/Users/vickery/Projects/dgw_processor')
 csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
 result = run([Path(dgw_processor, 'course_mapper.py'), '-a'],
              stdout=sys.stdout, stderr=sys.stderr)
 if result.returncode != 0:
-  print('Mapper FAILED!')
+  print('  Mapper FAILED!')
 else:
-  print('Copying Mapper results to transfer_app/static/csv/')
+  print('Copy Course Mapper results to transfer_app/static/csv/')
   mapper_files = Path(dgw_processor).glob('course_mapper.*csv')
   for mapper_file in mapper_files:
     shutil.copy2(mapper_file, csv_repository)
-
+if args.timing:
+  m, s = divmod(int(round(time.time() - substep_start)), 60)
+  h, m = divmod(m, 60)
+  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
 m, s = divmod(time.time() - start_time, 60)
 h, m = divmod(m, 60)
