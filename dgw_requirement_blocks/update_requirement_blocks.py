@@ -462,7 +462,7 @@ if args.timing:
   print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
 # Run timeouts in case updates encountered any.
-print('\nParse timeouts')
+print('Parse timeouts')
 substep_start = time.time()
 run(['../../dgw_processor/parse_timeouts.py'], stdout=sys.stdout, stderr=sys.stderr)
 if args.timing:
