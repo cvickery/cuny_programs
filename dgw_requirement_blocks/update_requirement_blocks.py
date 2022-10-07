@@ -480,11 +480,10 @@ if args.timing:
   print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
 # Create table of active programs for Course Mapper to reference
-# (NO LONGER NEEDED after ~2022-08-20)
-# print('Build ra_counts table')
-# result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
-# if result.returncode != 0:
-#   print('Build ra_counts FAILED!')
+print('Build ra_counts table')
+result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
+if result.returncode != 0:
+  print('Build ra_counts FAILED!')
 
 # Run the course mapper on all active requirement blocks
 print('Run Course Mapper')
