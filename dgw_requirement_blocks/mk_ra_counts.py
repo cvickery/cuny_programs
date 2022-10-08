@@ -1,6 +1,10 @@
 #! /usr/local/bin/python3
 """ Use the latest list of students per active term per program to build the ra_counts table for
     limiting which active blocks get processed by the course mapper.
+
+    Terminology:
+      Current blocks are in dap_req_block with a period_stop value that starts with '9'
+      Active blocks are for programs/subprograms for which students can enroll
 """
 
 import csv
@@ -36,19 +40,25 @@ if __name__ == '__main__':
       create table ra_counts (
       institution text,
       requirement_id text,
+      block_type text,
+      block_value text,
       active_term integer,
       total_students integer,
       foreign key (institution, requirement_id) references requirement_blocks,
       primary key (institution, requirement_id, active_term));
       """)
 
+      # Create dict of current blocks, giving their their block types/values
       cursor.execute("""
-      select institution, requirement_id
+      select institution, requirement_id, block_type, block_value
         from requirement_blocks
        where period_stop ~* '^9'
        """)
-      active_blocks = [(row.institution, row.requirement_id) for row in cursor]
-      print(f'{len(active_blocks):,} active blocks')
+      print(f'{cursor.rowcount:,} current blocks')
+      current_blocks = {(row.institution, row.requirement_id): (row.block_type, row.block_value)
+                        for row in cursor.fetchall()}
+
+      # The OAREDA list includes gives the enrollments for each requirement block for each term
       with open(latest_active, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter='|')
         for line in reader:
@@ -56,11 +66,14 @@ if __name__ == '__main__':
             Row = namedtuple('Row', ' '.join(col.lower().replace(' ', '_') for col in line))
           else:
             row = Row._make(line)
-            if (row.institution, row.dap_req_id) in active_blocks:
+            if (row.institution, row.dap_req_id) in current_blocks:
+              block_type, block_value = current_blocks[(row.institution, row.dap_req_id)]
               cursor.execute("""
-              insert into ra_counts values(%s, %s, %s, %s)
+              insert into ra_counts values(%s, %s, %s, %s, %s, %s)
               """, [row.institution,
                     row.dap_req_id,
+                    block_type,
+                    block_value,
                     int(row.dap_active_term.strip('U')),
                     int(row.distinct_students)])
 seconds = int(round(time.time() - start))
