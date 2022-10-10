@@ -42,20 +42,26 @@ if __name__ == '__main__':
       requirement_id text,
       block_type text,
       block_value text,
+      block_title text,
+      major1 text,
       active_term integer,
       total_students integer,
       foreign key (institution, requirement_id) references requirement_blocks,
       primary key (institution, requirement_id, active_term));
       """)
 
-      # Create dict of current blocks, giving their their block types/values
+      # Create dict of current blocks, pulling their their block-type/-value/-title, and major1
+      # fields from requirement_blocks.
       cursor.execute("""
-      select institution, requirement_id, block_type, block_value
+      select institution, requirement_id, block_type, block_value, title as block_title, major1
         from requirement_blocks
        where period_stop ~* '^9'
        """)
       print(f'{cursor.rowcount:,} current blocks')
-      current_blocks = {(row.institution, row.requirement_id): (row.block_type, row.block_value)
+      current_blocks = {(row.institution, row.requirement_id): (row.block_type,
+                                                                row.block_value,
+                                                                row.block_title,
+                                                                row.major1)
                         for row in cursor.fetchall()}
 
       # The OAREDA list includes gives the enrollments for each requirement block for each term
@@ -67,13 +73,16 @@ if __name__ == '__main__':
           else:
             row = Row._make(line)
             if (row.institution, row.dap_req_id) in current_blocks:
-              block_type, block_value = current_blocks[(row.institution, row.dap_req_id)]
+              block_type, block_value, block_title, major1 = current_blocks[(row.institution,
+                                                                             row.dap_req_id)]
               cursor.execute("""
-              insert into ra_counts values(%s, %s, %s, %s, %s, %s)
+              insert into ra_counts values(%s, %s, %s, %s, %s, %s, %s, %s)
               """, [row.institution,
                     row.dap_req_id,
                     block_type,
                     block_value,
+                    block_title,
+                    major1,
                     int(row.dap_active_term.strip('U')),
                     int(row.distinct_students)])
 seconds = int(round(time.time() - start))
