@@ -177,7 +177,7 @@ print(f'{sys.argv[0]} on {hostname} at '
 if hostname.lower().endswith('cuny.edu'):
   if not args.skip_tumbleweed:
     print('Get latest requirement blocks from Tumbleweed')
-    update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stderr)
+    update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stdout)
     if update_result.returncode != 0:
       print('  Tumbleweed download FAILED.')
 else:
@@ -455,7 +455,7 @@ if args.timing:
 # Regenerate program CSV and HTML files
 print('Regenerate CSV and HTML')
 substep_start = time.time()
-run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stderr)
+run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stdout)
 if args.timing:
   m, s = divmod(int(round(time.time() - substep_start)), 60)
   h, m = divmod(m, 60)
@@ -464,7 +464,7 @@ if args.timing:
 # Run timeouts in case updates encountered any.
 print('Parse timeouts')
 substep_start = time.time()
-run(['../../dgw_processor/parse_timeouts.py'], stdout=sys.stdout, stderr=sys.stderr)
+run(['../../dgw_processor/parse_timeouts.py'], stdout=sys.stdout, stderr=sys.stdout)
 if args.timing:
   m, s = divmod(int(round(time.time() - substep_start)), 60)
   h, m = divmod(m, 60)
@@ -473,7 +473,7 @@ if args.timing:
 # Update quarantined list in case updates fixed any.
 print('Update quarantined list')
 substep_start = time.time()
-run(['../../dgw_processor/parse_quarantined.py'], stdout=sys.stdout, stderr=sys.stderr)
+run(['../../dgw_processor/parse_quarantined.py'], stdout=sys.stdout, stderr=sys.stdout)
 if args.timing:
   m, s = divmod(int(round(time.time() - substep_start)), 60)
   h, m = divmod(m, 60)
@@ -481,7 +481,7 @@ if args.timing:
 
 # Create table of active programs for Course Mapper to reference
 print('Build ra_counts table')
-result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stderr)
+result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stdout)
 if result.returncode != 0:
   print('Build ra_counts FAILED!')
 
@@ -491,7 +491,7 @@ substep_start = time.time()
 dgw_processor = Path('/Users/vickery/Projects/dgw_processor')
 csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
 result = run([Path(dgw_processor, 'course_mapper.py'), '-a'],
-             stdout=sys.stdout, stderr=sys.stderr)
+             stdout=sys.stdout, stderr=sys.stdout)
 if result.returncode != 0:
   print('  Mapper FAILED!')
 else:
