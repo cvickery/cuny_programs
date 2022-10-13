@@ -1,0 +1,128 @@
+#! /usr/local/bin/python3
+"""
+    Use the latest list of students per active term per dap_req_block to build the
+    active_req_blocks table for limiting which active blocks get processed by the course mapper.
+
+    Terminology:
+      A dap_req_block is a Degree Works "Degree Audit Process REQuirement BLOCK" which includes the
+      Scribe code that specifies a set of requirements, along with attributes (metadata) to identify
+      the block (requirement_id, block_type, block_value and range of academic years, for example)
+
+      Current blocks are in dap_req_block (local table name is requirement_blocks) with a
+      period_stop attribute that starts with '9', meaning they are in effect for the current
+      academic year.
+
+      Active blocks are dap_req_blocks for programs/subprograms for which students who are currently
+      in attendance at the college and are registered for the program.
+
+      Programs includes both :
+        - academic plans (dap_req_block type is MAJOR or MINOR)
+        - academic subplans (dap_req_block type is CONC)
+"""
+
+import csv
+import datetime
+import json
+import os
+import psycopg
+import sys
+import time
+
+from collections import namedtuple, defaultdict
+from pathlib import Path
+from psycopg.rows import namedtuple_row
+
+BlockInfo = namedtuple('BlockInfo', 'block_type block_value block_title major1')
+
+if __name__ == '__main__':
+  # Get the latest list of active program requirement_blocks from OAREDA
+  start = time.time()
+  latest_active = None
+  for active in Path('./archives').glob('*active*'):
+    if latest_active is None or active.stat().st_mtime > latest_active.stat().st_mtime:
+      latest_active = active
+  if latest_active is None:
+    exit('No active_requirements files found')
+  file_date = datetime.date.fromtimestamp(latest_active.stat().st_mtime)
+  print(f'Using {latest_active.name} {file_date}')
+
+  # Create the table of active requirement blocks.
+  # Include dap_req_block metadata as well as active enrollment data by term
+  with psycopg.connect('dbname=cuny_curriculum') as conn:
+    with conn.cursor(row_factory=namedtuple_row) as cursor:
+
+      cursor.execute("""
+      drop table if exists active_req_blocks;
+
+      create table active_req_blocks (
+      institution text,
+      requirement_id text,
+      block_type text,
+      block_value text,
+      block_title text,
+      major1 text,
+      term_info jsonb,
+      foreign key (institution, requirement_id) references requirement_blocks,
+      primary key (institution, requirement_id));
+      """)
+
+      # Create dict of metadata for "current" blocks in the dap_req_block (requirement_blocks) table
+      cursor.execute(r"""
+      select institution, requirement_id, block_type, block_value, title as block_title, major1
+        from requirement_blocks
+       where period_stop ~* '^9'
+         and block_value !~* '^\d+$' -- Skip numeric block values
+         and block_value !~* '^mhc'  -- Skip Macaulay blocks
+       """)
+      print(f'{cursor.rowcount:,} current blocks')
+      current_blocks = {(row.institution, row.requirement_id): BlockInfo._make([row.block_type,
+                                                                                row.block_value,
+                                                                                row.block_title,
+                                                                                row.major1])
+                        for row in cursor.fetchall()}
+
+      # The OAREDA list includes gives the enrollment for each requirement block for each active
+      # term, where an active term is one in which current student(s) at the institution are
+      # actually enrolled in a program. Here, that is converted into a timeline of term-enrollment
+      # pairs.
+      active_blocks = defaultdict(list)
+      with open(latest_active, newline='') as csv_file:
+        reader = csv.reader(csv_file, delimiter='|')
+        for line in reader:
+          if reader.line_num == 1:
+            Row = namedtuple('Row', ' '.join(col.lower().replace(' ', '_') for col in line))
+          else:
+            row = Row._make(line)
+            try:
+              current_block = current_blocks[(row.institution, row.dap_req_id)]
+            except KeyError:
+              # print(f'{row.institution} {row.dap_req_id} No current block for active block')
+              continue
+            if (row.institution, row.dap_req_id) not in active_blocks.keys():
+              block_dict = current_block._asdict()
+              block_dict['terms'] = []
+              active_blocks[(row.institution, row.dap_req_id)] = block_dict
+            term_info = {'active_term': int(row.dap_active_term.strip('U')),
+                         'distinct_students': int(row.distinct_students)}
+            active_blocks[(row.institution, row.dap_req_id)]['terms'].append(term_info)
+
+      # Populate the active_req_blocks table
+      # NOTE: Whether a block is really active or not depends on the date of the most recent
+      # active_term (and when in the academic year you look). These were all "active blocks" at some
+      # point, but not necessarily "now"!
+      for key, active_block in active_blocks.items():
+        term_info_list = sorted(active_block['terms'], key=lambda x: x['active_term'])
+
+        cursor.execute("""
+        insert into active_req_blocks values(%s, %s, %s, %s, %s, %s, %s)
+        """, [key[0],
+              key[1],
+              active_block['block_type'],
+              active_block['block_value'],
+              active_block['block_title'],
+              active_block['major1'],
+              json.dumps(term_info_list, ensure_ascii=False)
+              ])
+seconds = int(round(time.time() - start))
+mins, secs = divmod(seconds, 60)
+print(f'  {mins} min {secs} sec')
