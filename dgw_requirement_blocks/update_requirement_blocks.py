@@ -436,16 +436,16 @@ if file.parent.name != 'archives':
 mtime = time.mktime(irdw_load_date.timetuple())
 os.utime(file, (mtime, mtime))
 
-# Summarize DAP_REQ_BLOCK processing
+# Summarize DAP_REQ_BLOCK processing. Log message in caps is an experiment.
 if num_updated + num_inserted == 0:
-  print('No updated or new blocks found')
+  print('NO UPDATED OR NEW BLOCKS FOUND')
 else:
   s = '' if num_inserted == 1 else 's'
-  print(f'{num_inserted:6,} Block{s} Inserted')
+  print(f'{num_inserted:6,} Block{s} INSERTED')
   s = '' if num_updated == 1 else 's'
-  print(f'{num_updated:6,} Block{s} Updated')
+  print(f'{num_updated:6,} Block{s} UPDATED')
   s = '' if num_parsed == 1 else 's'
-  print(f'{num_parsed:6,} Block{s} Parsed')
+  print(f'{num_parsed:6,} Block{s} PARSED')
 
 if args.timing:
   m, s = divmod(int(round(time.time())) - start_time, 60)
@@ -479,11 +479,11 @@ if args.timing:
   h, m = divmod(m, 60)
   print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-# Create table of active programs for Course Mapper to reference
+# Create table of active requirement blocks for Course Mapper to reference
 print('Build ra_counts table')
-result = run(['./mk_ra_counts.py'], stdout=sys.stdout, stderr=sys.stdout)
+result = run(['./mk_active_req_blocks.py'], stdout=sys.stdout, stderr=sys.stdout)
 if result.returncode != 0:
-  print('Build ra_counts FAILED!')
+  print('Build active_req_blocks FAILED!')
 
 # Run the course mapper on all active requirement blocks
 print('Run Course Mapper')
