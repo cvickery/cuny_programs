@@ -31,6 +31,9 @@ import time
 from collections import namedtuple, defaultdict
 from pathlib import Path
 from psycopg.rows import namedtuple_row
+from quarantine_manager import QuarantineManager
+
+quarantined_dict = QuarantineManager()
 
 BlockInfo = namedtuple('BlockInfo', 'block_type block_value block_title major1')
 
@@ -74,12 +77,18 @@ if __name__ == '__main__':
          and block_value !~* '^\d+$' -- Skip numeric block values
          and block_value !~* '^mhc'  -- Skip Macaulay blocks
        """)
-      print(f'{cursor.rowcount:,} current blocks')
-      current_blocks = {(row.institution, row.requirement_id): BlockInfo._make([row.block_type,
-                                                                                row.block_value,
-                                                                                row.block_title,
-                                                                                row.major1])
-                        for row in cursor.fetchall()}
+      num_current = 0
+      current_blocks = dict()
+      # Filter out quarantined blocks.
+      for row in cursor.fetchall():
+        if quarantined_dict.is_quarantined((row.institution, row.requirement_id)):
+          continue
+        num_current += 1
+        current_blocks[(row.institution, row.requirement_id)] = BlockInfo._make([row.block_type,
+                                                                                 row.block_value,
+                                                                                 row.block_title,
+                                                                                 row.major1])
+      print(f'{num_current:,} current blocks')
 
       # The OAREDA list includes gives the enrollment for each requirement block for each active
       # term, where an active term is one in which current student(s) at the institution are
@@ -106,10 +115,13 @@ if __name__ == '__main__':
                          'distinct_students': int(row.distinct_students)}
             active_blocks[(row.institution, row.dap_req_id)]['terms'].append(term_info)
 
+      print(f'{len(active_blocks):,} current blocks that are active')
       # Populate the active_req_blocks table
-      # NOTE: Whether a block is really active or not depends on the date of the most recent
-      # active_term (and when in the academic year you look). These were all "active blocks" at some
-      # point, but not necessarily "now"!
+      # NOTE: Whether a block is currently active or not depends on the date of the most recent
+      # active_term and when in the academic year you look. These were all "active blocks" at some
+      # point in the past, but not necessarily "now."
+      # The activeblocks module will pick out blocks that have been active within the past calendar
+      # year.
       for key, active_block in active_blocks.items():
         term_info_list = sorted(active_block['terms'], key=lambda x: x['active_term'])
 
