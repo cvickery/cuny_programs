@@ -25,3 +25,5 @@ queries/
 /dgw_requirement_blocks/todo.txt
 /dgw_requirement_blocks/anomalies.txt
 /dgw_requirement_blocks/missing_ra.txt
+/dgw_requirement_blocks/inactive_plans.txt
+/dgw_requirement_blocks/new_plans.txt

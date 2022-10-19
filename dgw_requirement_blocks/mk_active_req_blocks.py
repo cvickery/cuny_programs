@@ -64,6 +64,8 @@ if __name__ == '__main__':
       block_value text,
       block_title text,
       major1 text,
+      period_start text,
+      period_stop text,
       term_info jsonb,
       foreign key (institution, requirement_id) references requirement_blocks,
       primary key (institution, requirement_id));
