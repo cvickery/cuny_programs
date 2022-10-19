@@ -35,7 +35,8 @@ from quarantine_manager import QuarantineManager
 
 quarantined_dict = QuarantineManager()
 
-BlockInfo = namedtuple('BlockInfo', 'block_type block_value block_title major1')
+BlockInfo = namedtuple('BlockInfo', 'block_type block_value block_title major1 '
+                       'period_start period_stop')
 
 if __name__ == '__main__':
   # Get the latest list of active program requirement_blocks from OAREDA
@@ -73,7 +74,8 @@ if __name__ == '__main__':
 
       # Create dict of metadata for "current" blocks in the dap_req_block (requirement_blocks) table
       cursor.execute(r"""
-      select institution, requirement_id, block_type, block_value, title as block_title, major1
+      select institution, requirement_id, block_type, block_value, title as block_title, major1,
+             period_start, period_stop
         from requirement_blocks
        where period_stop ~* '^9'
          and block_value !~* '^\d+$' -- Skip numeric block values
@@ -89,7 +91,9 @@ if __name__ == '__main__':
         current_blocks[(row.institution, row.requirement_id)] = BlockInfo._make([row.block_type,
                                                                                  row.block_value,
                                                                                  row.block_title,
-                                                                                 row.major1])
+                                                                                 row.major1,
+                                                                                 row.period_start,
+                                                                                 row.period_stop])
       print(f'{num_current:,} current blocks')
 
       # The OAREDA list includes gives the enrollment for each requirement block for each active
@@ -128,13 +132,15 @@ if __name__ == '__main__':
         term_info_list = sorted(active_block['terms'], key=lambda x: x['active_term'])
 
         cursor.execute("""
-        insert into active_req_blocks values(%s, %s, %s, %s, %s, %s, %s)
+        insert into active_req_blocks values(%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, [key[0],
               key[1],
               active_block['block_type'],
               active_block['block_value'],
               active_block['block_title'],
               active_block['major1'],
+              active_block['period_start'],
+              active_block['period_stop'],
               json.dumps(term_info_list, ensure_ascii=False)
               ])
 seconds = int(round(time.time() - start))
