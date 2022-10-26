@@ -12,8 +12,10 @@
       period_stop attribute that starts with '9', meaning they are in effect for the current
       academic year.
 
-      Active blocks are dap_req_blocks for programs/subprograms for which students who are currently
-      in attendance at the college and are registered for the program.
+      Active blocks are dap_req_blocks for degrees, majors, minors, concentrations, and some other
+      types of block (other and libl) for which students who are currently in attendance at the
+      college and are registered for the program. OAREDA provides an daily update of these blocks,
+      including their enrollment sizes, for each term the block was active.
 
       Programs includes both :
         - academic plans (dap_req_block type is MAJOR or MINOR)
@@ -96,10 +98,9 @@ if __name__ == '__main__':
                                                                                  row.period_stop])
       print(f'{num_current:,} current blocks')
 
-      # The OAREDA list includes gives the enrollment for each requirement block for each active
-      # term, where an active term is one in which current student(s) at the institution are
-      # actually enrolled in a program. Here, that is converted into a timeline of term-enrollment
-      # pairs.
+      # The OAREDA list includes the enrollment for each requirement block for each active term,
+      # where an active term is one in which current student(s) at the institution are actually
+      # enrolled in a program. Here, that is converted into a timeline of term-enrollment pairs.
       active_blocks = defaultdict(list)
       with open(latest_active, newline='') as csv_file:
         reader = csv.reader(csv_file, delimiter='|')
