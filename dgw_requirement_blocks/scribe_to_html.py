@@ -1,6 +1,6 @@
 #! /usr/local/bin/python3
 
-from dgw_filter import dgw_filter
+from dgw_preprocessor import dgw_filter
 
 
 # to_html()
@@ -11,7 +11,7 @@ def to_html(requirement_text):
   # catalog_type, first_year, last_year, catalog_years_text = catalog_years(row.period_start,
   #                                                                         row.period_stop)
   # institution_name = institution_names[row.institution]
-  filtered_text = dgw_filter(requirement_text)
+  filtered_text = dgw_filter(requirement_text, remove_comments=False)
   html = f"""
 <details>
   <summary><strong>Degree Works Code</strong> (<em>Scribe Block</em>)</summary>
