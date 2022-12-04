@@ -1,5 +1,0 @@
--- These are the versions used during development.
-recordclass ~= 0.10.2
-requests ~= 2.21.0
-lxml.html ~= 4.3.3
-cssselect ~= 1.0.3

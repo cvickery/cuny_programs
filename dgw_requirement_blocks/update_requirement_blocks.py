@@ -224,6 +224,7 @@ empty_parse_tree = json.dumps({})
 irdw_load_date = None
 num_rows = num_inserted = num_updated = num_parsed = 0
 
+print(f'Process {file.name}')
 for row in generator(file):
   num_rows += 1
 
@@ -290,7 +291,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
                                       f'{requirement_id}')
         db_row = cursor.fetchone()
 
-        # Record history of changes in the Scribe block itself
+        # Record history of changes to the Scribe block itself
         days_ago = f'{(parse_date - db_row.parse_date).days}'.zfill(3)
         s = '' if days_ago == 1 else 's'
         diff_msg = f'{days_ago} day{s} since previous parse date'
@@ -409,10 +410,10 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
                                  int(args.timelimit))
         quarantine_key = (new_row.institution, new_row.requirement_id)
         if 'error' in parse_tree.keys():
-          reason = parse_tree['error']
-          parse_outcome = f': {reason}'
+          explanation = parse_tree['error']
+          parse_outcome = f': {explanation}'
           if not quarantine_manager.is_quarantined(quarantine_key):
-            quarantine_manager[quarantine_key] = [reason, 'unknown']
+            quarantine_manager[quarantine_key] = explanation
         else:
           # No error and it was previously quarantined, release it
           if quarantine_manager.is_quarantined(quarantine_key):
