@@ -80,6 +80,15 @@ do
          break
   fi
 done
+
+# HTML and CSV
+echo -n 'Generate HTML and CSV files ...'
+./generate_html.py
+if [[ $? != 0 ]]
+then echo 'FAILED!'
+else echo 'done.'
+fi
+
 # Record the date of this update
 /usr/local/bin/psql cuny_curriculum -tqXc "update updates set update_date = '$update_date' \
                         where table_name = 'registered_programs'"
