@@ -439,7 +439,8 @@ os.utime(file, (mtime, mtime))
 
 # Summarize DAP_REQ_BLOCK processing. Log message in caps is an experiment.
 if num_updated + num_inserted == 0:
-  print('NO UPDATED OR NEW BLOCKS FOUND')
+  # Make this easy to see in the email report
+  print('\nNO UPDATED OR NEW BLOCKS FOUND\n')
 else:
   s = '' if num_inserted == 1 else 's'
   print(f'{num_inserted:6,} Block{s} INSERTED')
