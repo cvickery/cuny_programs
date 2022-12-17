@@ -501,6 +501,13 @@ else:
   mapper_files = Path(dgw_processor).glob('course_mapper.*csv')
   for mapper_file in mapper_files:
     shutil.copy2(mapper_file, csv_repository)
+
+  print('Load mapping tables')
+  result = run([Path(dgw_processor, 'load_mapping_tables.py'), '-a'],
+               stdout=sys.stdout, stderr=sys.stdout)
+  if result.returncode != 0:
+    print('  Load mapping tables FAILED!')
+
 if args.timing:
   m, s = divmod(int(round(time.time() - substep_start)), 60)
   h, m = divmod(m, 60)
