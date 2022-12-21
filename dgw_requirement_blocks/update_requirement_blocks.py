@@ -503,7 +503,7 @@ else:
     shutil.copy2(mapper_file, csv_repository)
 
   print('Load mapping tables')
-  result = run([Path(dgw_processor, 'load_mapping_tables.py'), '-a'],
+  result = run([Path(dgw_processor, 'load_mapping_tables.py')],
                stdout=sys.stdout, stderr=sys.stdout)
   if result.returncode != 0:
     print('  Load mapping tables FAILED!')
