@@ -2,12 +2,15 @@
 
 import json
 import psycopg
+import sys
 
+from cip_codes import cip_codes
 from collections import namedtuple
+from datetime import datetime
+from knowninstitutions import known_institutions
 from psycopg.rows import namedtuple_row
 
-from knowninstitutions import known_institutions
-from cip_codes import cip_codes
+DEBUG = False
 
 
 # fix_title()
@@ -32,7 +35,7 @@ def fix_title(str):
 # andor_list()
 # -------------------------------------------------------------------------------------------------
 def andor_list(items, andor='and'):
-  """ Join a list of stings into a comma-separated con/disjunction.
+  """ Join a list of strings into a comma-separated con/disjunction.
       Forms:
         a             a
         a and b       a or b
@@ -55,7 +58,7 @@ def generate_html():
   """
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as cursor:
-      with conn.cursor(row_factory=namedtuple_row) as plan_cursor:
+      with conn.cursor(row_factory=namedtuple_row) as inner_cursor:
 
         # Find out what CUNY colleges are in the db
         cursor.execute("""
@@ -66,14 +69,12 @@ def generate_html():
                        """)
 
         if cursor.rowcount < 1:
-          conn.close()
           exit("No registered-program information for CUNY colleges available at this time")
 
-        cuny_institutions = dict([(row.inst, {'name': row.name})
-                                 for row in cursor.fetchall()])
+        cuny_institutions = dict([(row.inst, {'name': row.name}) for row in cursor])
 
         cursor.execute('select hegis_code, description from hegis_codes')
-        hegis_codes = {row.hegis_code: row.description for row in cursor.fetchall()}
+        hegis_codes = {row.hegis_code: row.description for row in cursor}
 
         # List of short CUNY institution names plus known non-CUNY names
         # Start with the list of all known institutions, then replace CUNY names with their short
@@ -85,7 +86,7 @@ def generate_html():
                           select code, prompt
                             from cuny_institutions
                        """)
-        for row in cursor.fetchall():
+        for row in cursor:
           short_names[row.code.lower()[0:3]] = row.prompt
 
         # Generate the HTML and CSV values for each row of the respective tables, and save them in
@@ -110,8 +111,15 @@ def generate_html():
                        where nys_institutions.id ~* registered_programs.institution
                        order by title, program_code
                        """)
-        for row in cursor.fetchall():
-          # Parallel structures for the HTML and CSV cells
+
+        # Parallel structures for the HTML and CSV cells
+        total_rows = cursor.rowcount
+        row_number = 0
+        for row in cursor:
+          row_number += 1
+          if DEBUG:
+            print(f'\r{row_number:,}/{total_rows:,}', end='')
+            print(row, file=sys.stderr)
 
           # Pick out two parameters for later use
           if row.is_variant:
@@ -153,14 +161,14 @@ def generate_html():
           csv_values[5] = f'{csv_values[5]} ({description})'
 
           # Insert list of all CUNY programs (plans) for this program code
-          plan_cursor.execute("""select * from cuny_programs
+          inner_cursor.execute("""select * from cuny_programs
                                  where nys_program_code = %s
                                  and program_status = 'A'""", (html_values[0],))
           cuny_cell_html_content = ''
           cuny_cell_csv_content = ''
           cip_set = set()
-          if plan_cursor.rowcount > 0:
-            plans = plan_cursor.fetchall()
+          if inner_cursor.rowcount > 0:
+            plans = inner_cursor.fetchall()
             # There is just one program and description per college, but the program may be shared
             # among multiple departments at a college.
             Program_Info = namedtuple('Program_Info', 'program program_title departments')
@@ -198,9 +206,10 @@ def generate_html():
               cuny_cell_html_content += (f' {inst_str}{program} ({departments_str})'
                                          f'<br>{program_title}')
               cuny_cell_csv_content += f'{inst_str}{program} ({departments_str})\n{program_title}'
-              # If there is a dgw requirement block for the plan, use link to it
+
+              # If there is a single dgw requirement block for the plan, link to it
               institution = row.institution
-              plan_cursor.execute("""
+              inner_cursor.execute("""
                                  select *
                                    from requirement_blocks
                                   where institution ~* %s
@@ -209,24 +218,26 @@ def generate_html():
                                     and period_stop ~* '^9'
                                  """, (institution, plan.academic_plan))
               # Can only link to a single RA for a major from here. Log multiple-RA instances.
-              if plan_cursor.rowcount > 0:
-                if plan_cursor.rowcount == 1:
-                  plan_row = plan_cursor.fetchone()
+              if inner_cursor.rowcount > 0:
+                if inner_cursor.rowcount == 1:
+                  plan_row = inner_cursor.fetchone()
                   cuny_cell_html_content += (f'<br><a href="/requirements/?institution='
                                              f'{institution.upper() + "01"}'
                                              f'&requirement_id={plan_row.requirement_id}">'
                                              f'Requirements</a>')
                   # IDEALLY the host would automatically adjust to the deployment target
-                  # (ra.qc.cuny.edu, Heroku, or Lehman, etc). But it's hard-coded here ... for now.
+                  # (transfer-app.qc.cuny.edu, Heroku, or explorer.cuny.edu, etc). But it's
+                  # hard-coded here ... for now.
                   host = 'transfer-app.qc.cuny.edu'
                   cuny_cell_csv_content += (f'\nhttps://{host}/requirements/?institution='
                                             f'{institution.upper() + "01"}'
                                             f'&requirement_id={plan_row.requirement_id}')
                 else:
-                  # Note the occurrence of multiple current RA's for this program
-                  with open('/Users/vickery/Projects/transfer_app/transfer_app.log', 'a') as logs:
-                    print(f'Found {plan_cursor.rowcount} current RA’s for '
-                          f'{institution}, {plan.academic_plan}', file=logs)
+                  # Log the occurrence of multiple current RA's for this program
+                  with open('/Users/vickery/Projects/cuny_programs/registered_programs.log',
+                            'a') as log_file:
+                    print(f'Found {inner_cursor.rowcount} current RA’s for '
+                          f'{institution}, {plan.academic_plan}', file=log_file)
               if show_institution:
                 cuny_cell_html_content += '<br>'
                 cuny_cell_csv_content += '\n'
@@ -239,18 +250,29 @@ def generate_html():
           csv_values.insert(8, cuny_cell_csv_content)
 
           html_cells = ''.join([f'<td>{value}</td>' for value in html_values]).replace("\'", "’")
+          if DEBUG:
+            print(f'  {row.award}', file=sys.stderr)
+            print(f'  {csv_values}', file=sys.stderr)
+            print(f'  {html_values}', file=sys.stderr)
+          inner_cursor.execute(f"""update registered_programs
+                                      set html='<tr{class_str}>{html_cells}</tr>'
+                                    where target_institution = %s
+                                      and program_code = %s
+                                      and award = %s
+                          """, (row.target_institution, row.program_code, row.award))
 
-          cursor.execute(f"""update registered_programs set html='<tr{class_str}>{html_cells}</tr>'
-                             where target_institution = %s
-                               and program_code = %s
-                          """, (row.target_institution, row.program_code))
-
-          cursor.execute(f"""update registered_programs set csv= %s
-                              where target_institution = %s
-                                and program_code = %s
-                           """, (json.dumps(csv_values), row.target_institution, row.program_code))
+          inner_cursor.execute(f"""update registered_programs
+                                      set csv= %s
+                                    where target_institution = %s
+                                      and program_code = %s
+                                      and award = %s
+                           """, (json.dumps(csv_values), row.target_institution, row.program_code, row.award))
 
 
 if __name__ == '__main__':
+  """ Command line interface is for debugging
+  """
+  DEBUG = True
+  start = datetime.now()
   generate_html()
-  exit(0)
+  print(f'\n{(datetime.now() - start).total_seconds():0.1f} seconds')

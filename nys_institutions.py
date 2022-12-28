@@ -1,14 +1,15 @@
 #! /usr/local/bin/python3
 
-import re
-from datetime import date
-from typing import Dict, Tuple
 
-import requests
-from lxml.html import document_fromstring
 import cssselect
+import psycopg
+import re
+import requests
 
-from pgconnection import PgConnection
+from datetime import date
+from lxml.html import document_fromstring
+from psycopg.rows import namedtuple_row
+from typing import Dict, Tuple
 
 """   Institutions that have academic programs registered with NYS Department of Education.
       Includes all known CUNY colleges plus other institutions that have M/I programs with a CUNY
@@ -53,34 +54,33 @@ option_elements = [option.text_content() for option in html_document.cssselect('
 if len(option_elements) < 100:
   exit(f'{__file__}: ERROR: got only {len(option_elements)} institutions from {url}.')
 
-conn = PgConnection()
-cursor = conn.cursor()
-cursor.execute("select update_date from updates where table_name = 'nys_institutions'")
-if cursor.rowcount == 0:
-  print('Creating nys_institutions table')
-  cursor.execute("""create table if not exists nys_institutions (
-                    id text primary key,
-                    institution_id text,
-                    institution_name text,
-                    is_cuny boolean)
-                 """)
-  cursor.execute('truncate nys_institutions')
-  cursor.execute("""insert into updates values ('nys_institutions')""")
-else:
-  print(f'Truncating nys_institutions table previously updated {cursor.fetchone().update_date}.')
-  cursor.execute('truncate nys_institutions')
-print(f'Adding {len(cuny_institutions)} CUNY institutions')
-for key, value in cuny_institutions.items():
-  cursor.execute(f"""insert into nys_institutions values(%s, %s, %s, %s)
-                  """, (key, value[0], value[1], True))
-print(f'Adding {len(option_elements)} NYS institutions')
-for option_element in option_elements:
-  institution_id, institution_name = option_element.split(maxsplit=1)
-  assert institution_id.isdecimal()
-  institution_id = f'{int(institution_id):06}'
-  cursor.execute(f"""insert into nys_institutions values(%s, %s, %s, %s)
-                  """, (institution_id, institution_id, institution_name.strip(), False))
-today = date.today().strftime('%Y-%m-%d')
-cursor.execute(f"update updates set update_date ='{today}' where table_name='nys_institutions'")
-conn.commit()
-conn.close()
+with psycopg.connect('dbname=cuny_curriculum') as conn:
+  with conn.cursor(row_factory=namedtuple_row) as cursor:
+    cursor.execute("select update_date from updates where table_name = 'nys_institutions'")
+    if cursor.rowcount == 0:
+      print('Creating nys_institutions table')
+      cursor.execute("""create table if not exists nys_institutions (
+                        id text primary key,
+                        institution_id text,
+                        institution_name text,
+                        is_cuny boolean)
+                     """)
+      cursor.execute('truncate nys_institutions')
+      cursor.execute("""insert into updates values ('nys_institutions')""")
+    else:
+      print(f'Truncating nys_institutions table previously updated '
+            f'{cursor.fetchone().update_date}.')
+      cursor.execute('truncate nys_institutions')
+    print(f'Adding {len(cuny_institutions)} CUNY institutions')
+    for key, value in cuny_institutions.items():
+      cursor.execute(f"""insert into nys_institutions values(%s, %s, %s, %s)
+                      """, (key, value[0], value[1], True))
+    print(f'Adding {len(option_elements)} NYS institutions')
+    for option_element in option_elements:
+      institution_id, institution_name = option_element.split(maxsplit=1)
+      assert institution_id.isdecimal()
+      institution_id = f'{int(institution_id):06}'
+      cursor.execute(f"""insert into nys_institutions values(%s, %s, %s, %s)
+                      """, (institution_id, institution_id, institution_name.strip(), False))
+    today = date.today().strftime('%Y-%m-%d')
+    cursor.execute(f"update updates set update_date ='{today}' where table_name='nys_institutions'")

@@ -1,4 +1,4 @@
-""" The Program class, which is a list of NYS-registered academic programs.
+""" The RegisteredProgram class, which is a list of NYS-registered academic programs.
 """
 import sys
 import re
@@ -17,7 +17,7 @@ _items = ['institution',
 _variant_info = recordclass('Variant_Info', _items, mapping=True)
 
 
-class Program(object):
+class RegisteredProgram(object):
   """ For each program registered with NYS Department of Education, collect information about the
       program scraped from the DoE website.
 
@@ -53,13 +53,13 @@ class Program(object):
     """ Return unique object for this program_code; create it first if necessary.
     """
     assert program_code.isdecimal(), f'Invalid program code: “{program_code}”'
-    if program_code not in Program.programs.keys():
-      Program.programs[program_code] = super().__new__(self)
-      Program.programs[program_code].program_code = program_code
-      Program.programs[program_code].unit_code = unit_code
-      Program.programs[program_code].formats = formats
-      Program.programs[program_code].variants = {}
-    return Program.programs[program_code]
+    if program_code not in RegisteredProgram.programs.keys():
+      RegisteredProgram.programs[program_code] = super().__new__(self)
+      RegisteredProgram.programs[program_code].program_code = program_code
+      RegisteredProgram.programs[program_code].unit_code = unit_code
+      RegisteredProgram.programs[program_code].formats = formats
+      RegisteredProgram.programs[program_code].variants = {}
+    return RegisteredProgram.programs[program_code]
 
   def __init__(self, program_code, unit_code='Unknown', formats='Unknown'):
     assert self.program_code == program_code, f'“{self.program_code}” != “{program_code}”'
@@ -122,5 +122,5 @@ class Program(object):
     return [self.variants[variant_tuple][field] for field in fields]
 
   def __str__(self):
-    return (self.__repr__().replace('program.Program object', 'NYS Registered Program')
+    return (self.__repr__().replace('program.RegisteredProgram object', 'NYS Registered RegisteredProgram')
             + f' {self.program_code} {self.unit_code} {", ".join(self.awards)}')

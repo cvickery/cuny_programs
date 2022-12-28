@@ -32,34 +32,33 @@ Design Notes
     elements inside un-closed H4’s. That information is processed as lines of text, relying on the
     internal formatting of the PRE blocks.
 
-    Program codes and HEGIS codes look like integers and floats respectively, but are kept as
-    strings because that is how they arrive and that is how they are always used/displayed.
+    RegisteredProgram codes and HEGIS codes look like integers and floats respectively, but are kept
+    as strings because that is how they arrive and that is how they are always used/displayed.
 
 """
 import argparse
+import cssselect
 import csv
 import os
+import psycopg
 import re
+import requests
 import socket
 import sys
 
+
 from datetime import date
-
-import requests
 from lxml.html import document_fromstring
-import cssselect
-
-from pgconnection import PgConnection
+from registered_program import RegisteredProgram
+from psycopg.rows import namedtuple_row
 from sendemail import send_message
-from program import Program
 
 known_institutions = dict()
-conn = PgConnection()
-cursor = conn.cursor()
-cursor.execute("select * from nys_institutions")
-known_institutions = {row.id: (row.institution_id, row.institution_name, row.is_cuny)
-                      for row in cursor.fetchall()}
-conn.close()
+with psycopg.connect(dbname='cuny_curriculum') as conn:
+  with conn.cursor(row_factory=namedtuple_row) as cursor:
+    cursor.execute("select * from nys_institutions")
+    known_institutions = {row.id: (row.institution_id, row.institution_name, row.is_cuny)
+                          for row in cursor.fetchall()}
 
 
 def detail_lines(all_lines, debug=False):
@@ -91,7 +90,7 @@ def fix_title(str):
 
 def lookup_programs(institution, verbose=False, debug=False):
   """ Scrape info about academic programs registered with NYS from the Department of Education
-      website. Create a Program object for each program_code.
+      website. Create a RegisteredProgram object for each program_code.
   """
   try:
     institution_id, institution_name, is_cuny = known_institutions[institution]
@@ -134,7 +133,7 @@ def lookup_programs(institution, verbose=False, debug=False):
                         h4)
     if matches:
       program_code = matches.group(1)
-      program = Program(program_code)
+      program = RegisteredProgram(program_code)
       this_title = fix_title(matches.group(2))
       this_award = matches.group(3).strip()
       continue
@@ -170,14 +169,14 @@ def lookup_programs(institution, verbose=False, debug=False):
       continue
 
   if verbose:
-    num_programs = len(Program.programs)
+    num_programs = len(RegisteredProgram.programs)
     len_num = len(str(num_programs))
     print(f'Found {num_programs} registered programs.', file=sys.stderr)
     print('Fetching details...', file=sys.stderr)
 
   if debug:
-    for p in Program.programs:
-      program = Program.programs[p]
+    for p in RegisteredProgram.programs:
+      program = RegisteredProgram.programs[p]
       print(program.program_code, program.unit_code)
       for v in program.variants:
         print(v, program.values(v))
@@ -186,7 +185,7 @@ def lookup_programs(institution, verbose=False, debug=False):
   # Structure:
   # * A program line followed by optional multi-award, and multi-institution lines. These
   #   lines determine the program variants for a program.
-  # * A for-award line followed by detail liness for that award. There will be one or more for-award
+  # * A for-award line followed by detail lines for that award. There will be one or more for-award
   #   groups. The details get applied to all variants that include the specified award.
   #
   # The following code tests lines in the sequence in which they appear on the details web page.
@@ -194,11 +193,11 @@ def lookup_programs(institution, verbose=False, debug=False):
   # actual sequence of lines on the details page would make it all work out.
 
   programs_counter = 0  # For progress reporting in verbose mode
-  for p in Program.programs:
-    program = Program.programs[p]
+  for p in RegisteredProgram.programs:
+    program = RegisteredProgram.programs[p]
     programs_counter += 1
     if verbose and os.isatty(sys.stdout.fileno()):
-      print(f'Program code: {p} ({programs_counter:{len_num}}/{num_programs})\r',
+      print(f'Registered Program code: {p} ({programs_counter:{len_num}}/{num_programs})\r',
             end='', file=sys.stderr)
 
     for_award = None
@@ -236,7 +235,7 @@ def lookup_programs(institution, verbose=False, debug=False):
         program_institution = matches.group(5)
 
         if debug:
-          print(f'Program # or M/A line: {program.program_code}: "{program_title}" {program_hegis}'
+          print(f'Program Code # or M/A line: {program.program_code}: "{program_title}" {program_hegis}'
                 f' {program_award} "{program_institution}"')
 
         this_institution = None
@@ -252,7 +251,7 @@ def lookup_programs(institution, verbose=False, debug=False):
         continue
 
       if token == 'M/I':
-        # Extract hegis, award, institution
+        # Multi-Institution: extract hegis, award, institution
         if 'NOT-GRANTING' in line:
           # If the award is NOT-GRANTING, then variants for this award-institution pair have to be
           # removed.
@@ -356,7 +355,7 @@ def lookup_programs(institution, verbose=False, debug=False):
 
   if verbose:
     print('\r')
-  return Program.programs
+  return RegisteredProgram.programs
 
 
 """ Command Line Interface
@@ -396,8 +395,9 @@ if __name__ == '__main__':
       file_name = institution.upper() + '_' + date.today().isoformat() + '.csv'
       with open(file_name, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(['Program Code', 'Registration Office', 'Formats'] + Program._headings)
-        for p in Program.programs:
+        writer.writerow(['Program Code', 'Registration Office', 'Formats']
+                        + RegisteredProgram._headings)
+        for p in RegisteredProgram.programs:
           program = programs[p]
           for program_variant in program.variants:
             writer.writerow([program.program_code, program.unit_code, program.formats]
@@ -405,33 +405,30 @@ if __name__ == '__main__':
 
     if args.html:
       # Generate a HTML table element. Add CSS to highlight rows that have the “variant” class.
-      print(Program.html_table())
+      print(RegisteredProgram.html_table())
 
     if args.update_db:
       # See registered_programs.sql for the schema of the table, which must already exist.
-      conn = PgConnection()
-      cursor = conn.cursor()
-      cursor.execute('delete from registered_programs where target_institution=%s',
-                     (institution,))
-      print('Replacing {} entries for {} with info for {} programs.'
-            .format(cursor.rowcount, institution.upper(), len(Program.programs)))
-      for p in Program.programs:
-        program = programs[p]
-        is_variant = len(program.variants) > 1
-        for program_variant in program.variants:
-          values = [institution, program.program_code, program.unit_code]
-          values += program.values(program_variant)
-          values += [is_variant]
-          values.insert(6, program.formats)
-          # deal with nul bytes from NYS
-          for i in range(len(values)):
-            if type(values[i]) is str:
-              values[i] = values[i].replace('\x00', '')
-          cursor.execute('insert into registered_programs values(' + ', '.join(['%s'] * len(values))
-                         + ')', values)
-
-      conn.commit()
-      conn.close()
+      with psycopg.connect('dbname=cuny_curriculum') as conn:
+        with conn.cursor(row_factory=namedtuple_row) as cursor:
+          cursor.execute('delete from registered_programs where target_institution=%s',
+                         (institution,))
+          print('Replacing {} entries for {} with info for {} programs.'
+                .format(cursor.rowcount, institution.upper(), len(RegisteredProgram.programs)))
+          for p in RegisteredProgram.programs:
+            program = programs[p]
+            is_variant = len(program.variants) > 1
+            for program_variant in program.variants:
+              values = [institution, program.program_code, program.unit_code]
+              values += program.values(program_variant)
+              values += [is_variant]
+              values.insert(6, program.formats)
+              # deal with nul bytes from NYS
+              for i in range(len(values)):
+                if type(values[i]) is str:
+                  values[i] = values[i].replace('\x00', '')
+              cursor.execute(f'insert into registered_programs values('
+                             f"{', '.join(['%s'] * len(values))})", values)
 
   else:
     sys.exit('lookup_programs failed')
