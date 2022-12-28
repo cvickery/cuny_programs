@@ -118,7 +118,9 @@ def generate_html():
         for row in cursor:
           row_number += 1
           if DEBUG:
+            # Progress to stdout
             print(f'\r{row_number:,}/{total_rows:,}', end='')
+            # Debug info to stderr
             print(row, file=sys.stderr)
 
           # Pick out two parameters for later use
@@ -270,9 +272,10 @@ def generate_html():
 
 
 if __name__ == '__main__':
-  """ Command line interface is for debugging
+  """ Command line interface: any argument turns on debugging/progress
   """
-  DEBUG = True
+  if len(sys.argv) > 1:
+    DEBUG = True
   start = datetime.now()
   generate_html()
-  print(f'\n{(datetime.now() - start).total_seconds():0.1f} seconds')
+  print(f'  {(datetime.now() - start).total_seconds():0.1f} seconds')
