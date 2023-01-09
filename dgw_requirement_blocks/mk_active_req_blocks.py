@@ -74,6 +74,12 @@ if __name__ == '__main__':
       primary key (institution, requirement_id));
       """)
 
+      # Initialize the is_active column of the requirement_blocks table
+      cursor.execute("""
+      alter table requirement_blocks drop column if exists is_active;
+      alter table requirement_blocks add column is_active boolean default false;
+      """)
+
       # Create dict of metadata for "current" blocks in the dap_req_block (requirement_blocks) table
       cursor.execute(r"""
       select institution, requirement_id, block_type, block_value, title as block_title, major1,
@@ -123,6 +129,7 @@ if __name__ == '__main__':
             active_blocks[(row.institution, row.dap_req_id)]['terms'].append(term_info)
 
       print(f'{len(active_blocks):,} current blocks that are active')
+
       # Populate the active_req_blocks table
       # NOTE: Whether a block is currently active or not depends on the date of the most recent
       # active_term and when in the academic year you look. These were all "active blocks" at some
@@ -144,6 +151,14 @@ if __name__ == '__main__':
               active_block['period_stop'],
               json.dumps(term_info_list, ensure_ascii=False)
               ])
+
+        # Update the is_active column of the block
+        cursor.execute("""
+        update requirement_blocks set is_active = true
+        where institution = %s
+          and requirement_id = %s
+        """, key)
+
 seconds = int(round(time.time() - start))
 mins, secs = divmod(seconds, 60)
 print(f'  {mins} min {secs} sec')
