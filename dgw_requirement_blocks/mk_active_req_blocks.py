@@ -76,8 +76,8 @@ if __name__ == '__main__':
 
       # Initialize the is_active column of the requirement_blocks table
       cursor.execute("""
-      alter table requirement_blocks drop column if exists is_active;
-      alter table requirement_blocks add column is_active boolean default false;
+      alter table requirement_blocks drop column if exists term_info;
+      alter table requirement_blocks add column term_info jsonb default null;
       """)
 
       # Create dict of metadata for "current" blocks in the dap_req_block (requirement_blocks) table
@@ -154,10 +154,10 @@ if __name__ == '__main__':
 
         # Update the is_active column of the block
         cursor.execute("""
-        update requirement_blocks set is_active = true
+        update requirement_blocks set term_info = %s
         where institution = %s
           and requirement_id = %s
-        """, key)
+        """, (json.dumps(term_info_list, ensure_ascii=False), key[0], key[1]))
 
 seconds = int(round(time.time() - start))
 mins, secs = divmod(seconds, 60)
