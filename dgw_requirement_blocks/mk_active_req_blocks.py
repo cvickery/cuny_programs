@@ -76,8 +76,19 @@ if __name__ == '__main__':
 
       # Initialize the is_active column of the requirement_blocks table
       cursor.execute("""
-      alter table requirement_blocks drop column if exists term_info;
+      alter table requirement_blocks drop column if exists term_info cascade;
       alter table requirement_blocks add column term_info jsonb default null;
+      DROP VIEW IF EXISTS view_blocks;
+      CREATE VIEW view_blocks AS (
+      SELECT institution,
+             requirement_id,
+             block_type,
+             block_value,
+             title,
+             major1,
+             period_stop,
+             term_info is not null as is_active
+        FROM requirement_blocks);
       """)
 
       # Create dict of metadata for "current" blocks in the dap_req_block (requirement_blocks) table
