@@ -482,7 +482,7 @@ if args.timing:
   print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
 # Create table of active requirement blocks for Course Mapper to reference
-print('Build ra_counts table')
+print('Build active_req_blocks')
 result = run(['./mk_active_req_blocks.py'], stdout=sys.stdout, stderr=sys.stdout)
 if result.returncode != 0:
   print('Build active_req_blocks FAILED!')
@@ -490,20 +490,20 @@ if result.returncode != 0:
 # Run the course mapper on all active requirement blocks
 print('Run Course Mapper')
 substep_start = time.time()
-dgw_processor = Path('/Users/vickery/Projects/dgw_processor')
+course_mapper = Path('/Users/vickery/Projects/course_mapper')
 csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
-result = run([Path(dgw_processor, 'course_mapper.py'), '-a'],
+result = run([Path(course_mapper, 'course_mapper.py')],
              stdout=sys.stdout, stderr=sys.stdout)
 if result.returncode != 0:
-  print('  Mapper FAILED!')
+  print('  Course Mapper FAILED!')
 else:
   print('Copy Course Mapper results to transfer_app/static/csv/')
-  mapper_files = Path(dgw_processor).glob('course_mapper.*csv')
+  mapper_files = Path(course_mapper, 'reports').glob('course_mapper.*csv')
   for mapper_file in mapper_files:
     shutil.copy2(mapper_file, csv_repository)
 
   print('Load mapping tables')
-  result = run([Path(dgw_processor, 'load_mapping_tables.py')],
+  result = run([Path(course_mapper, 'load_mapping_tables.py')],
                stdout=sys.stdout, stderr=sys.stdout)
   if result.returncode != 0:
     print('  Load mapping tables FAILED!')
