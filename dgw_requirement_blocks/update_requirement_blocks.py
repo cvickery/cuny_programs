@@ -49,12 +49,14 @@ import psycopg
 import re
 import shutil
 import sys
+import tempfile
 import time
 
 from collections import namedtuple
 from pathlib import Path
 from psycopg.rows import namedtuple_row
 from quarantine_manager import QuarantineManager
+from sendemail import send_message
 from subprocess import run
 from types import SimpleNamespace
 from xml.etree.ElementTree import parse
@@ -170,6 +172,7 @@ if args.debug:
   DEBUG = True
 
 hostname = os.uname().nodename
+is_cuny = hostname.endswith('cuny.edu')
 
 print(f'{sys.argv[0]} on {hostname} at '
       f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
@@ -501,6 +504,20 @@ else:
   mapper_files = Path(course_mapper, 'reports').glob('course_mapper.*csv')
   for mapper_file in mapper_files:
     shutil.copy2(mapper_file, csv_repository)
+
+  if is_cuny:
+    print('Email mapping files status report')
+    html_file = tempfile.TemporaryFile()
+    run([Path('/Users/vickery/bin', 'check_lehman.py')], stdout=html_file)
+    html_file.seek(0)
+    html_msg = html_file.read()
+    to_list = [{'name': 'Christopher Buonocore', 'email': 'Christopher.Buonocore@lehman.cuny.edu'},
+               {'name': 'Elkin Urrea', 'email': 'Elkin.Urrea@lehman.cuny.edu'},
+               {'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
+               {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
+               ]
+    sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
+    send_message(to_list, sender, 'Course Mapper files report', html_msg.decode('utf-8'))
 
   print('Load mapping tables')
   result = run([Path(course_mapper, 'load_mapping_tables.py')],
