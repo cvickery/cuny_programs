@@ -177,11 +177,13 @@ is_cuny = hostname.endswith('cuny.edu')
 print(f'{sys.argv[0]} on {hostname} at '
       f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
 
+intersperse_text = ''
 if hostname.lower().endswith('cuny.edu'):
   if not args.skip_tumbleweed:
     print('Get latest requirement blocks from Tumbleweed')
     update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stdout)
     if update_result.returncode != 0:
+      intersperse_text = '<p>Tumbleweed download FAILED.</p>'
       print('  Tumbleweed download FAILED.')
 else:
   print(f'Tumbleweed not available from {hostname}')
@@ -442,15 +444,25 @@ os.utime(file, (mtime, mtime))
 
 # Summarize DAP_REQ_BLOCK processing. Log message in caps is an experiment.
 if num_updated + num_inserted == 0:
-  # Make this easy to see in the email report
-  print('\nNO UPDATED OR NEW BLOCKS FOUND\n')
+  # Make this easy to see in the email report to me
+  print('\nNO NEW OR UPDATED BLOCKS FOUND\n')
+  # and in the email report to Lehman
+  intersperse_text += '<p><strong>No new or updated requirement blocks</strong></p>'
 else:
   s = '' if num_inserted == 1 else 's'
-  print(f'{num_inserted:6,} Block{s} INSERTED')
+  msg = f'{num_inserted:6,} Requirement Block{s} INSERTED'
+  print(msg)
+  intersperse_text += f'<p>{msg}</p>'
+
   s = '' if num_updated == 1 else 's'
-  print(f'{num_updated:6,} Block{s} UPDATED')
+  msg = f'{num_updated:6,} Requirement Block{s} UPDATED'
+  print(msg)
+  intersperse_text += f'<p>{msg}</p>'
+
   s = '' if num_parsed == 1 else 's'
-  print(f'{num_parsed:6,} Block{s} PARSED')
+  msg = f'{num_parsed:6,} Requirement Block{s} PARSED'
+  print(msg)
+  intersperse_text += f'<p>{msg}</p>'
 
 if args.timing:
   m, s = divmod(int(round(time.time())) - start_time, 60)
@@ -499,25 +511,32 @@ result = run([Path(course_mapper, 'course_mapper.py')],
              stdout=sys.stdout, stderr=sys.stdout)
 if result.returncode != 0:
   print('  Course Mapper FAILED!')
+  intersperse_text += '<p><strong>Course Mapper Failed!</strong></p>'
 else:
   print('Copy Course Mapper results to transfer_app/static/csv/')
   mapper_files = Path(course_mapper, 'reports').glob('course_mapper.*csv')
   for mapper_file in mapper_files:
     shutil.copy2(mapper_file, csv_repository)
 
+  print('Email mapping files status report')
+  html_file = tempfile.TemporaryFile()
+  run([Path('/Users/vickery/bin', 'check_lehman.py')], stdout=html_file)
+  html_file.seek(0)
+  html_msg = html_file.read().decode('utf-8')
+  intersperse_code = '<!-- INTERSPERSE -->'
+  html_msg = html_msg.replace(intersperse_code, intersperse_text)
   if is_cuny:
-    print('Email mapping files status report')
-    html_file = tempfile.TemporaryFile()
-    run([Path('/Users/vickery/bin', 'check_lehman.py')], stdout=html_file)
-    html_file.seek(0)
-    html_msg = html_file.read()
+    subject = 'Course Mapper files report'
     to_list = [{'name': 'Christopher Buonocore', 'email': 'Christopher.Buonocore@lehman.cuny.edu'},
                {'name': 'Elkin Urrea', 'email': 'Elkin.Urrea@lehman.cuny.edu'},
                {'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
                {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
                ]
-    sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
-    send_message(to_list, sender, 'Course Mapper files report', html_msg.decode('utf-8'))
+  else:
+    subject = f'Course Mapper files report from {hostname}'
+    to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
+  sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
+  send_message(to_list, sender, subject, html_msg)
 
   print('Load mapping tables')
   result = run([Path(course_mapper, 'load_mapping_tables.py')],
