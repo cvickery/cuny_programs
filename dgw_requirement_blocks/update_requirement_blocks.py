@@ -57,6 +57,7 @@ from pathlib import Path
 from psycopg.rows import namedtuple_row
 from quarantine_manager import QuarantineManager
 from sendemail import send_message
+from status_report import status_report
 from subprocess import run
 from types import SimpleNamespace
 from xml.etree.ElementTree import parse
@@ -172,20 +173,21 @@ if args.debug:
   DEBUG = True
 
 hostname = os.uname().nodename
-is_cuny = hostname.endswith('cuny.edu')
+is_cuny = hostname.lower().endswith('cuny.edu')
 
-print(f'{sys.argv[0]} on {hostname} at '
+print(f'{Path(sys.argv[0]).name} on {hostname} at '
       f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
 
-intersperse_text = ''
-if hostname.lower().endswith('cuny.edu'):
+front_matter = ''
+if is_cuny:
   if not args.skip_tumbleweed:
     print('Get latest requirement blocks from Tumbleweed')
     update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stdout)
     if update_result.returncode != 0:
-      intersperse_text = '<p>Tumbleweed download FAILED.</p>'
+      front_matter += '<p>Tumbleweed download <strong>FAILED</strong>.</p>'
       print('  Tumbleweed download FAILED.')
 else:
+  front_matter += f'<p>Tumbleweed not available from {hostname}</p>'
   print(f'Tumbleweed not available from {hostname}')
 
 
@@ -200,7 +202,7 @@ vals = '(' + vals.strip(', ') + ')'
 DB_Record = namedtuple('DB_Record', db_cols)
 
 file = Path(args.file)
-from_archive = False
+from_archive = ''
 if file.exists():
   file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
 else:
@@ -214,7 +216,7 @@ else:
   if latest is None:
     sys.exit(f'{file} does not exist, and no archive found')
   file = latest
-  from_archive = True
+  from_archive = ' from archive'
   file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
 
 if file.suffix.lower() == '.xml':
@@ -257,10 +259,8 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
       if irdw_load_date is None:
         irdw_load_date = load_date
         log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'w')
-        if from_archive:
-          print(f'Using {file} with irdw_load_date {load_date} from archive')
-        else:
-          print(f'Using {file} {file_date} with irdw_load_date {load_date}')
+        print(f'Using {file.name} {file_date} with irdw_load_date {irdw_load_date}{from_archive}')
+
       if irdw_load_date != load_date:
         sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
                  f'for {row.institution} {row.requirement_id}')
@@ -447,22 +447,22 @@ if num_updated + num_inserted == 0:
   # Make this easy to see in the email report to me
   print('\nNO NEW OR UPDATED BLOCKS FOUND\n')
   # and in the email report to Lehman
-  intersperse_text += '<p><strong>No new or updated requirement blocks</strong></p>'
+  front_matter += '<p><strong>No new or updated requirement blocks</strong></p>'
 else:
   s = '' if num_inserted == 1 else 's'
   msg = f'{num_inserted:6,} Requirement Block{s} INSERTED'
   print(msg)
-  intersperse_text += f'<p>{msg}</p>'
+  front_matter += f'<p>{msg}</p>'
 
   s = '' if num_updated == 1 else 's'
   msg = f'{num_updated:6,} Requirement Block{s} UPDATED'
   print(msg)
-  intersperse_text += f'<p>{msg}</p>'
+  front_matter += f'<p>{msg}</p>'
 
   s = '' if num_parsed == 1 else 's'
   msg = f'{num_parsed:6,} Requirement Block{s} PARSED'
   print(msg)
-  intersperse_text += f'<p>{msg}</p>'
+  front_matter += f'<p>{msg}</p>'
 
 if args.timing:
   m, s = divmod(int(round(time.time())) - start_time, 60)
@@ -511,7 +511,7 @@ result = run([Path(course_mapper, 'course_mapper.py')],
              stdout=sys.stdout, stderr=sys.stdout)
 if result.returncode != 0:
   print('  Course Mapper FAILED!')
-  intersperse_text += '<p><strong>Course Mapper Failed!</strong></p>'
+  front_matter += '<p><strong>Course Mapper Failed!</strong></p>'
 else:
   print('Copy Course Mapper results to transfer_app/static/csv/')
   mapper_files = Path(course_mapper, 'reports').glob('course_mapper.*csv')
@@ -519,12 +519,7 @@ else:
     shutil.copy2(mapper_file, csv_repository)
 
   print('Email mapping files status report')
-  html_file = tempfile.TemporaryFile()
-  run([Path('/Users/vickery/bin', 'check_lehman.py')], stdout=html_file)
-  html_file.seek(0)
-  html_msg = html_file.read().decode('utf-8')
-  intersperse_code = '<!-- INTERSPERSE -->'
-  html_msg = html_msg.replace(intersperse_code, intersperse_text)
+  html_msg = status_report(file_date, load_date, front_matter)
   if is_cuny:
     subject = 'Course Mapper files report'
     to_list = [{'name': 'Christopher Buonocore', 'email': 'Christopher.Buonocore@lehman.cuny.edu'},
