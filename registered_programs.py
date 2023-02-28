@@ -62,8 +62,7 @@ with psycopg.connect(dbname='cuny_curriculum') as conn:
 
 
 def detail_lines(all_lines, debug=False):
-  """ Filter out unwanted lines from a details web page for a program code, and yield the others.
-  """
+  """Filter out unwanted lines from a details web page for a program code; yield the others."""
   lines = all_lines.splitlines()
   for line in lines:
     if re.search(r'^\s+\d{5}\s+|FOR AWARD|PROGRAM|CERTIFICATE|M/A|M/I', line):
@@ -74,8 +73,7 @@ def detail_lines(all_lines, debug=False):
 
 
 def fix_title(str):
-  """ Create a better titlecase string, taking specifics of this dataset into account.
-  """
+  """Create a better titlecase string, taking specifics of this dataset into account."""
   return (str.strip(' *')
              .title()
              .replace('Cuny', 'CUNY')
@@ -89,8 +87,9 @@ def fix_title(str):
 
 
 def lookup_programs(institution, verbose=False, debug=False):
-  """ Scrape info about academic programs registered with NYS from the Department of Education
-      website. Create a RegisteredProgram object for each program_code.
+  """Scrape info about programs registered with NYS from the Department of Education website.
+
+  Create a RegisteredProgram object for each program_code.
   """
   try:
     institution_id, institution_name, is_cuny = known_institutions[institution]

@@ -90,7 +90,6 @@ else echo 'done.'
 fi
 
 # Record the date of this update
-/usr/local/bin/psql cuny_curriculum -tqXc "update updates set update_date = '$update_date' \
-                        where table_name = 'registered_programs'"
+psql cuny_curriculum -tqXc "update updates set update_date = CURRENT_DATE where table_name = 'registered_programs'"
 
 echo End update_registered_programs.sh at `date`
