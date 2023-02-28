@@ -1,5 +1,5 @@
 #! /usr/local/bin/python3
-
+"""Create table of all NYS institutions, with special attention to CUNY."""
 
 import cssselect
 import psycopg
@@ -56,21 +56,16 @@ if len(option_elements) < 100:
 
 with psycopg.connect('dbname=cuny_curriculum') as conn:
   with conn.cursor(row_factory=namedtuple_row) as cursor:
-    cursor.execute("select update_date from updates where table_name = 'nys_institutions'")
-    if cursor.rowcount == 0:
-      print('Creating nys_institutions table')
-      cursor.execute("""create table if not exists nys_institutions (
-                        id text primary key,
-                        institution_id text,
-                        institution_name text,
-                        is_cuny boolean)
-                     """)
-      cursor.execute('truncate nys_institutions')
-      cursor.execute("""insert into updates values ('nys_institutions')""")
-    else:
-      print(f'Truncating nys_institutions table previously updated '
-            f'{cursor.fetchone().update_date}.')
-      cursor.execute('truncate nys_institutions')
+    print('Creating nys_institutions table')
+    cursor.execute("""
+    drop table if exists nys_institutions;
+    create table nys_institutions (
+      id text primary key,
+      institution_id text,
+      institution_name text,
+      is_cuny boolean);
+    insert into updates values ('nys_institutions') on conflict do nothing;
+    """)
     print(f'Adding {len(cuny_institutions)} CUNY institutions')
     for key, value in cuny_institutions.items():
       cursor.execute(f"""insert into nys_institutions values(%s, %s, %s, %s)
@@ -83,4 +78,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
       cursor.execute(f"""insert into nys_institutions values(%s, %s, %s, %s)
                       """, (institution_id, institution_id, institution_name.strip(), False))
     today = date.today().strftime('%Y-%m-%d')
-    cursor.execute(f"update updates set update_date ='{today}' where table_name='nys_institutions'")
+    cursor.execute("""
+    update updates set update_date = CURRENT_DATE
+     where table_name='nys_institutions'
+    """)
