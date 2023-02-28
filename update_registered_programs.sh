@@ -8,15 +8,15 @@ function restore_from_archive()
   then echo "RESTORING ${archives[$n-1]}"
       (
         export PGOPTIONS='--client-min-messages=warning'
-        /usr/local/bin/psql -tqX cuny_curriculum -c "drop table if exists $1 cascade"
-        /usr/local/bin/psql -tqX cuny_curriculum < ${archives[$n-1]}
+        psql -tqX cuny_curriculum -c "drop table if exists $1 cascade"
+        psql -tqX cuny_curriculum < ${archives[$n-1]}
       )
   else echo "ERROR: Unable to restore $1."
-      exit 1
+       exit 1
   fi
 }
 echo Start update_registered_programs.sh on `hostname` at `date`
-export PYTHONPATH=/Users/vickery/Projects/transfer_app/:/Users/vickery/Projects/dgw_processor
+export PYTHONPATH=$HOME/Projects/transfer_app/:$HOME/Projects/dgw_processor
 
 # Archive tables that might/will get clobbered.
 ./archive_tables.sh
@@ -57,15 +57,8 @@ fi
 # Update the registered_programs table
 # -------------------------------------------------------------------------------------------------
 
-# Create the table if it does not exist yet.
-/usr/local/bin/psql cuny_curriculum -tqXc \
-"select update_date from updates where table_name = 'registered_programs'" | pbcopy
-previous_update_date=`pbpaste|tr -d ' '`
-if [[ $previous_update_date == '' ]]
-then echo -n "(Re-)create the registered_programs table ... "
-     /usr/local/bin/psql -tqX cuny_curriculum -f registered_programs.sql
-     previous_update_date=`date +%Y-%m-%d`
-fi
+# (Re-)create the table.
+echo -n "(Re-)create the registered_programs table ... "
 
 # Generate/update the registered_programs table for all colleges
 update_date=`date +%Y-%m-%d`
