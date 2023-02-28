@@ -1,12 +1,15 @@
 #! /usr/local/bin/python3
+"""Scrape HEGIS codes from NYS Department of Education website."""
 
-from datetime import datetime
-from AdvancedHTMLParser import AdvancedHTMLParser
+import psycopg
 import requests
 import socket
 
-from pgconnection import PgConnection
+from datetime import datetime
+from psycopg.rows import namedtuple_row
 from sendemail import send_message
+
+from AdvancedHTMLParser import AdvancedHTMLParser
 
 # Be sure the NYSED website is accessible before proceeding.
 try:
@@ -28,8 +31,8 @@ tables = parser.getElementsByTagName('table')
 if len(tables) < 6:
   exit(f'hegis_codes.py: ERROR: Expected at least six tables; got {len(tables)}.')
 
-conn = PgConnection()
-cursor = conn.cursor()
+conn = psycopg.connect('dbname=cuny_curriculum')
+cursor = conn.cursor(row_factory=namedtuple_row)
 cursor.execute('drop table if exists hegis_areas, hegis_codes')
 cursor.execute("""
                   create table hegis_areas (
