@@ -6,7 +6,7 @@
 #   standalone job in not-normal (but unspecified!) situations.
 (
   # Be sure we are in the correct place in the filesystsm
-  cd /Users/vickery/Projects/cuny_programs/dgw_requirement_blocks
+  cd ~/Projects/cuny_programs/dgw_requirement_blocks
   echo $0 at `date`
   # Where the latest download will appear
   export current_download_file='./downloads/dgw_dap_req_block.csv'
@@ -46,7 +46,7 @@
     # computers not in the cuny.edu domain.)
     if [[ `hostname` =~ cuny.edu ]]
     then
-          export LFTP_PASSWORD=`cat /Users/vickery/.lftpwd`
+          export LFTP_PASSWORD=`cat ~/.lftpwd`
           /usr/local/bin/lftp -f ./getcunyrc
           if [[ $? != 0 ]]
           then echo "Download failed!" 1>&2
@@ -72,7 +72,7 @@
            echo Notice from `hostname` > msg
            printf "Downloaded size (%'d bytes) is over 10%% different \n" $size_download >> msg
            printf "from latest archive size (%'d bytes).\n" $size_latest >> msg
-           /Users/vickery/bin/sendemail -s "dgw_dap_req_block.csv download failed" \
+           ~/bin/sendemail -s "dgw_dap_req_block.csv download failed" \
            -t msg cvickery@qc.cuny.edu
            rm msg
 

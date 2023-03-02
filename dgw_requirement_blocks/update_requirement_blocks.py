@@ -78,7 +78,10 @@ cruft_table = str.maketrans(trans_dict)
 
 
 class Action:
+  """Container for insert/update bools."""
+
   def __init__(self):
+    """Initialize bools."""
     self.do_insert = False
     self.do_update = False
 
@@ -86,10 +89,11 @@ class Action:
 # decruft()
 # -------------------------------------------------------------------------------------------------
 def decruft(block):
-  """ Remove chars in the range 0x0e through 0x1f and returns the block otherwise unchanged.
-      This is the same thing strip_file does, which has to be run before this program for xml
-      files. But for csv files where strip_files wasn't run, this makes the text cleaner, avoiding
-      possible parsing problems.
+  """Remove chars in the range 0x0e through 0x1f and return the block otherwise unchanged.
+
+  This is the same thing strip_file does, which has to be run before this program for xml files. But
+  for csv files where strip_files wasn't run, this makes the text cleaner, avoiding possible parsing
+  problems.
   """
   return_block = block.translate(cruft_table)
 
@@ -106,8 +110,7 @@ def decruft(block):
 # csv_generator()
 # -------------------------------------------------------------------------------------------------
 def csv_generator(file):
-  """ Generate rows from a csv export of OIRA’s DAP_REQ_BLOCK table.
-  """
+  """Generate rows from a csv export of OIRA’s DAP_REQ_BLOCK table."""
   cols = None
   with open(file, newline='') as query_file:
     reader = csv.reader(query_file,
@@ -134,8 +137,7 @@ def csv_generator(file):
 # xml_generator()
 # -------------------------------------------------------------------------------------------------
 def xml_generator(file):
-  """ Generate rows from an xml export of OIRA’s DAP_REQ_BLOCK table.
-  """
+  """Generate rows from an xml export of OIRA’s DAP_REQ_BLOCK table."""
   try:
     tree = parse(file)
   except xml.etree.ElementTree.ParseError as pe:
@@ -175,6 +177,8 @@ if args.debug:
 hostname = os.uname().nodename
 is_cuny = hostname.lower().endswith('cuny.edu')
 
+home_dir = Path.home()
+
 print(f'{Path(sys.argv[0]).name} on {hostname} at '
       f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
 
@@ -207,7 +211,7 @@ if file.exists():
   file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
 else:
   # Try the latest archived version
-  archives_dir = Path('/Users/vickery/Projects/CUNY_Programs/dgw_requirement_blocks/archives')
+  archives_dir = Path(home_dir, 'Projects/CUNY_Programs/dgw_requirement_blocks/archives')
   archives = archives_dir.glob('dgw_dap_req_block*.csv')
   latest = None
   for archive in archives:
@@ -435,7 +439,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
   print(f'Archive {file.parent.name} to archives')
-  file = file.rename(f'/Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/archives/'
+  file = file.rename(fhome_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
 
 # Be sure the file modification time matches the load_date
@@ -505,8 +509,8 @@ if result.returncode != 0:
 # Run the course mapper on all active requirement blocks
 print('Run Course Mapper')
 substep_start = time.time()
-course_mapper = Path('/Users/vickery/Projects/course_mapper')
-csv_repository = Path('/Users/vickery/Projects/transfer_app/static/csv')
+course_mapper = Path(home_dir, 'Projects/course_mapper')
+csv_repository = Path(home_dir, 'Projects/transfer_app/static/csv')
 result = run([Path(course_mapper, 'course_mapper.py')],
              stdout=sys.stdout, stderr=sys.stdout)
 if result.returncode != 0:

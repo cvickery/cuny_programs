@@ -1,6 +1,6 @@
 #! /usr/local/bin/python3
-""" Generate status report for email to stakeholders.
-"""
+"""Generate status report for email to stakeholders."""
+
 import csv
 import datetime
 import sys
@@ -8,24 +8,11 @@ from pathlib import Path
 
 csv.field_size_limit(1024 * 1024 * 1024)
 
-# archive = Path('/Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/archives')
-# dap_req_blocks = archive.glob('dgw_dap_req_block*.csv')
-# latest = None
-# for dap_req_block in dap_req_blocks:
-#   if latest is None or dap_req_block.stat().st_mtime > latest.stat().st_mtime:
-#     latest = dap_req_block
-# dap_req_block_date = datetime.date.fromtimestamp(latest.stat().st_mtime)
-# with open(latest, newline='') as archive_file:
-#   reader = csv.reader(archive_file)
-#   for line in reader:
-#     if reader.line_num > 1:
-#       irdw_load_date = line[-1]
-#       break
 
-
+# status_report()
+# -------------------------------------------------------------------------------------------------
 def status_report(dap_req_block_date: str, irdw_load_date: str, front_matter: str) -> str:
-  """
-  """
+  """Generate HTML report."""
   return_str = """
   <style>
   * {
@@ -65,7 +52,8 @@ def status_report(dap_req_block_date: str, irdw_load_date: str, front_matter: st
         """
 
   units = ['B', 'KB', 'MB', 'GB', 'TB']
-  files = Path('/Users/vickery/Projects/transfer_app/static/csv').glob('c*v')
+  home_dir = Path.home()
+  files = Path(home_dir, 'Projects/transfer_app/static/csv').glob('c*v')
 
   for file in files:
     name = file.name.replace('course_mapper.', '')
