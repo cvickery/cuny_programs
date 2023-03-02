@@ -6,8 +6,9 @@ import sys
 
 from cip_codes import cip_codes
 from collections import namedtuple
-from datetime import datetime
+from datetime import datetime, date
 from knowninstitutions import known_institutions
+from pathlib import Path
 from psycopg.rows import namedtuple_row
 
 DEBUG = False
@@ -236,9 +237,10 @@ def generate_html():
                                             f'&requirement_id={plan_row.requirement_id}')
                 else:
                   # Log the occurrence of multiple current RA's for this program
-                  with open('/Users/vickery/Projects/cuny_programs/registered_programs.log',
-                            'a') as log_file:
-                    print(f'Found {inner_cursor.rowcount} current RA’s for '
+                  home_dir = Path.home()
+                  log_file_path = Path(home_dir, 'Projects/cuny_programs/registered_programs.log')
+                  with log_file_path.open(mode='a') as log_file:
+                    print(f'{date.today()} Found {inner_cursor.rowcount} current RA’s for '
                           f'{institution}, {plan.academic_plan}', file=log_file)
               if show_institution:
                 cuny_cell_html_content += '<br>'
