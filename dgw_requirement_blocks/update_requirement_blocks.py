@@ -211,7 +211,7 @@ if file.exists():
   file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
 else:
   # Try the latest archived version
-  archives_dir = Path(home_dir, 'Projects/CUNY_Programs/dgw_requirement_blocks/archives')
+  archives_dir = Path(home_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives')
   archives = archives_dir.glob('dgw_dap_req_block*.csv')
   latest = None
   for archive in archives:
