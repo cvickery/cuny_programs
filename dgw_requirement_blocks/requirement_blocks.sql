@@ -27,8 +27,10 @@ create table requirement_blocks (
  requirement_text  text,
  requirement_html  text,
  parse_tree        jsonb default '{}'::jsonb,
- dgw_seconds       float,
  irdw_load_date    date,
+ dgw_seconds       real,
+ dgw_timestamp     text,
+ terminfo          jsonb,
  PRIMARY KEY (institution, requirement_id));
 
 drop view if exists view_blocks;
