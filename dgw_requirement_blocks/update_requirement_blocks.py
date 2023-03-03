@@ -1,42 +1,42 @@
 #! /usr/local/bin/python3
+"""Insert or update the cuny_programs.requirement_blocks table from a cuny-wide extract.
 
-""" Insert or update the cuny_programs.requirement_blocks table from a cuny-wide extract (includes
-    an institution column in addition to the DegreeWorks DAP_REQ_BLOCK columns.)
+Includes an institution column in addition to the DegreeWorks DAP_REQ_BLOCK columns.)
 
-    2019-11-10
-    Accept requirement block exports in either csv or xml format.
+  2019-11-10
+  Accept requirement block exports in either csv or xml format.
 
-    2019-07-26
-    This version works with the CUNY-wide dgw_dap_req_block table maintained by OIRA.
+  2019-07-26
+  This version works with the CUNY-wide dgw_dap_req_block table maintained by OIRA.
 
-    CUNY Institutions Not In DegreeWorks
-    GRD01 | The Graduate Center
-    LAW01 | CUNY School of Law
-    MED01 | CUNY School of Medicine
-    SOJ01 | Graduate School of Journalism
-    SPH01 | School of Public Health
+  CUNY Institutions Not In DegreeWorks
+  GRD01 | The Graduate Center
+  LAW01 | CUNY School of Law
+  MED01 | CUNY School of Medicine
+  SOJ01 | Graduate School of Journalism
+  SPH01 | School of Public Health
 
-    This is a map of DGW college codes to CF college codes
-    BB BAR01 | Baruch College
-    BC BKL01 | Brooklyn College
-    BM BMC01 | Borough of Manhattan CC
-    BX BCC01 | Bronx Community College
-    CC CTY01 | City College
-    HC HTR01 | Hunter College
-    HO HOS01 | Hostos Community College
-    JJ JJC01 | John Jay College
-    KB KCC01 | Kingsborough Community College
-    LC LEH01 | Lehman College
-    LG LAG01 | LaGuardia Community College
-    LU SLU01 | School of Labor & Urban Studies
-    ME MEC01 | Medgar Evers College
-    NC NCC01 | Guttman Community College
-    NY NYT01 | NYC College of Technology
-    QB QCC01 | Queensborough Community College
-    QC QNS01 | Queens College
-    SI CSI01 | College of Staten Island
-    SP SPS01 | School of Professional Studies
-    YC YRK01 | York College
+  This is a map of DGW college codes to CF college codes
+  BB BAR01 | Baruch College
+  BC BKL01 | Brooklyn College
+  BM BMC01 | Borough of Manhattan CC
+  BX BCC01 | Bronx Community College
+  CC CTY01 | City College
+  HC HTR01 | Hunter College
+  HO HOS01 | Hostos Community College
+  JJ JJC01 | John Jay College
+  KB KCC01 | Kingsborough Community College
+  LC LEH01 | Lehman College
+  LG LAG01 | LaGuardia Community College
+  LU SLU01 | School of Labor & Urban Studies
+  ME MEC01 | Medgar Evers College
+  NC NCC01 | Guttman Community College
+  NY NYT01 | NYC College of Technology
+  QB QCC01 | Queensborough Community College
+  QC QNS01 | Queens College
+  SI CSI01 | College of Staten Island
+  SP SPS01 | School of Professional Studies
+  YC YRK01 | York College
 """
 
 import argparse
