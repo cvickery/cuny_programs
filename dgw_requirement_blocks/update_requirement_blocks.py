@@ -439,7 +439,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
   print(f'Archive {file.parent.name} to archives')
-  file = file.rename(fhome_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives/'
+  file = file.rename(home_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
 
 # Be sure the file modification time matches the load_date
