@@ -212,11 +212,11 @@ if file.exists():
 else:
   # Try the latest archived version
   archives_dir = Path(home_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives')
-  archives = archives_dir.glob('dgw_dap_req_block*.csv')
+  archive_files = archives_dir.glob('dgw_dap_req_block*.csv')
   latest = None
-  for archive in archives:
-    if latest is None or archive.stat().st_mtime > latest.stat().st_mtime:
-      latest = archive
+  for archive_file in archive_files:
+    if latest is None or archive_file.stat().st_mtime > latest.stat().st_mtime:
+      latest = archive_file
   if latest is None:
     sys.exit(f'{file} does not exist, and no archive found')
   file = latest
@@ -439,7 +439,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
 # Archive the file just processed, unless it's already there
 if file.parent.name != 'archives':
   print(f'Archive {file.parent.name} to archives')
-  file = file.rename(home_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives/'
+  file = file.rename(home_dir.name + 'Projects/cuny_programs/dgw_requirement_blocks/archives/'
                      f'{file.stem}_{load_date}{file.suffix}')
 
 # Be sure the file modification time matches the load_date
