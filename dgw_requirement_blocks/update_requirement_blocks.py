@@ -178,6 +178,7 @@ hostname = os.uname().nodename
 is_cuny = hostname.lower().endswith('cuny.edu')
 
 home_dir = Path.home()
+archives_dir = Path(home_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives')
 
 print(f'{Path(sys.argv[0]).name} on {hostname} at '
       f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
@@ -211,7 +212,6 @@ if file.exists():
   file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
 else:
   # Try the latest archived version
-  archives_dir = Path(home_dir, 'Projects/cuny_programs/dgw_requirement_blocks/archives')
   archive_files = archives_dir.glob('dgw_dap_req_block*.csv')
   latest = None
   for archive_file in archive_files:
