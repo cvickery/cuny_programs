@@ -518,7 +518,7 @@ if result.returncode != 0:
   front_matter += '<p><strong>Course Mapper Failed!</strong></p>'
 else:
   print('Copy Course Mapper results to transfer_app/static/csv/')
-  mapper_files = Path(course_mapper, 'reports').glob('course_mapper.*csv')
+  mapper_files = Path(course_mapper, 'reports').glob('dgw_*')
   for mapper_file in mapper_files:
     shutil.copy2(mapper_file, csv_repository)
 

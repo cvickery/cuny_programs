@@ -53,7 +53,7 @@ def status_report(dap_req_block_date: str, irdw_load_date: str, front_matter: st
 
   units = ['B', 'KB', 'MB', 'GB', 'TB']
   home_dir = Path.home()
-  files = Path(home_dir, 'Projects/transfer_app/static/csv').glob('c*v')
+  files = Path(home_dir, 'Projects/transfer_app/static/csv').glob('dgw_*')
 
   for file in files:
     name = file.name.replace('course_mapper.', '')
