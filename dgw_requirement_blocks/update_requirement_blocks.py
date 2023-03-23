@@ -187,7 +187,7 @@ front_matter = ''
 # Download current dgw_dap_req_block.csv and dgw_ir_active_requirements.csv from Tumbleweed,
 # provided this computer has access and command line hasn't overridden this step.
 if is_cuny:
-  if not args.skip_tumbleweed:
+  if not args.skip_downloads:
     lftpwd = Path(home_dir, '.lftpwd').open().readline().strip()
     commands = '\n'.join(['cd ODI-Queens/DegreeWorks',
                           'mget -O /Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/'
