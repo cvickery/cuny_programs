@@ -1,25 +1,23 @@
 #! /usr/local/bin/python3
-"""
-    Use the latest list of students per active term per dap_req_block to build the
-    active_req_blocks table for limiting which active blocks get processed by the course mapper.
+"""Create the active_req_blocks table.
 
-    Terminology:
-      A dap_req_block is a Degree Works "Degree Audit Process REQuirement BLOCK" which includes the
-      Scribe code that specifies a set of requirements, along with attributes (metadata) to identify
-      the block (requirement_id, block_type, block_value and range of academic years, for example)
+Terminology:
+  A dap_req_block is a Degree Works "Degree Audit Process REQuirement BLOCK" which includes the
+  Scribe code that specifies a set of requirements, along with attributes (metadata) to identify
+  the block (requirement_id, block_type, block_value and range of academic years, for example)
 
-      Current blocks are in dap_req_block (local table name is requirement_blocks) with a
-      period_stop attribute that starts with '9', meaning they are in effect for the current
-      academic year.
+  Current blocks are in dap_req_block (local table name is requirement_blocks) with a
+  period_stop attribute that starts with '9', meaning they are in effect for the current
+  academic year.
 
-      Active blocks are dap_req_blocks for degrees, majors, minors, concentrations, and some other
-      types of block (other and libl) for which students who are currently in attendance at the
-      college and are registered for the program. OAREDA provides an daily update of these blocks,
-      including their enrollment sizes, for each term the block was active.
+  Active blocks are dap_req_blocks for degrees, majors, minors, concentrations, and some other
+  types of block (other and libl) for which students who are currently in attendance at the
+  college and are registered for the program. OAREDA provides an daily update of these blocks,
+  including their enrollment sizes, for each term the block was active.
 
-      Programs includes both :
-        - academic plans (dap_req_block type is MAJOR or MINOR)
-        - academic subplans (dap_req_block type is CONC)
+  Programs includes both :
+    - academic plans (dap_req_block type is MAJOR or MINOR)
+    - academic subplans (dap_req_block type is CONC)
 """
 
 import csv
@@ -30,6 +28,7 @@ import psycopg
 import sys
 import time
 
+from checksize import check_size
 from collections import namedtuple, defaultdict
 from pathlib import Path
 from psycopg.rows import namedtuple_row
@@ -41,16 +40,44 @@ BlockInfo = namedtuple('BlockInfo', 'block_type block_value block_title major1 '
                        'period_start period_stop')
 
 if __name__ == '__main__':
-  # Get the latest list of active program requirement_blocks from OAREDA
+
+  archives_dir = Path('archives')
+
   start = time.time()
+  # Get the latest-available CSV of active program requirement_blocks from OAREDA
+  """Find the latest archived version for size-consistency check and for use if there’s nothing
+     available in downloads.
+  """
   latest_active = None
-  for active in Path('./archives').glob('*active*'):
+  for active in archives_dir.glob('*active*'):
     if latest_active is None or active.stat().st_mtime > latest_active.stat().st_mtime:
       latest_active = active
+
+  # Check downloads folder
+  downloaded = Path('downloads/dgw_ir_active_requirements.csv')
+  if downloaded.is_file():
+
+    file_date = datetime.date.fromtimestamp(downloaded.stat().st_mtime)
+    new_name = downloaded.name.replace('.csv', f'_{file_date}.csv')
+
+    # Check new file's size is sane
+    if latest_active:
+      size_ok = check_size(latest_active.stat().st_size, downloaded.stat().st_size, 0.10)
+      if not size_ok:
+        print(f'{downloaded} size is not within 10% of {latest_active} (ignored)')
+    else:
+      size_ok = True
+
+    if size_ok:
+      # No archived or download is within tolerance
+      downloaded.rename(Path(archives_dir, new_name))
+      latest_active = downloaded
+
   if latest_active is None:
-    exit('No active_requirements files found')
-  file_date = datetime.date.fromtimestamp(latest_active.stat().st_mtime)
-  print(f'Using {latest_active.name} {file_date}')
+    # Nothing in archive and nothing is downloads
+    exit('mk_active_req_blocks: no dgw_ir_active_requirements file')
+  else:
+    print(f'mk_active_req_blocks: Using {latest_active.name}')
 
   # Create the table of active requirement blocks.
   # Include dap_req_block metadata as well as active enrollment data by term
@@ -146,7 +173,7 @@ if __name__ == '__main__':
       # active_term and when in the academic year you look. These were all "active blocks" at some
       # point in the past, but not necessarily "now."
       # The activeblocks module will pick out blocks that have been active within the past calendar
-      # year.
+      # year. [see activeblocks.py for the exact time interval]
       for key, active_block in active_blocks.items():
         term_info_list = sorted(active_block['terms'], key=lambda x: x['active_term'])
 
@@ -172,4 +199,4 @@ if __name__ == '__main__':
 
 seconds = int(round(time.time() - start))
 mins, secs = divmod(seconds, 60)
-print(f'  {mins} min {secs} sec')
+print(f'  mk_active_req_blocks took {mins} min {secs} sec')

@@ -52,6 +52,7 @@ import sys
 import tempfile
 import time
 
+from checksize import check_size
 from collections import namedtuple
 from pathlib import Path
 from psycopg.rows import namedtuple_row
@@ -158,13 +159,12 @@ def xml_generator(file):
 # -------------------------------------------------------------------------------------------------
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--debug', action='store_true')
-parser.add_argument('-f', '--file', default='./downloads/dgw_dap_req_block.csv')
 parser.add_argument('-p', '--progress', action='store_true')
 parser.add_argument('-t', '--timing', action='store_true')
 parser.add_argument('--parse', dest='parse', action='store_true')
 parser.add_argument('--no_parse', dest='parse', action='store_false')
 parser.add_argument('--log_unchanged', action='store_true')
-parser.add_argument('--skip_tumbleweed', action='store_true')
+parser.add_argument('--skip_downloads', action='store_true')
 parser.add_argument('--delimiter', default=',')
 parser.add_argument('--quotechar', default='"')
 parser.add_argument('--timelimit', default='60')
@@ -184,17 +184,22 @@ print(f'{Path(sys.argv[0]).name} on {hostname} at '
       f'{datetime.datetime.now().isoformat()[0:19].replace("T", " ")}')
 
 front_matter = ''
+# Download current dgw_dap_req_block.csv and dgw_ir_active_requirements.csv from Tumbleweed,
+# provided this computer has access and command line hasn't overridden this step.
 if is_cuny:
   if not args.skip_tumbleweed:
-    print('Get latest requirement blocks from Tumbleweed')
-    update_result = run(['./update_requirement_blocks.sh'], stdout=sys.stdout, stderr=sys.stdout)
-    if update_result.returncode != 0:
+    lftpwd = Path(home_dir, '.lftpwd').open().readline().strip()
+    commands = '\n'.join(['cd ODI-Queens/DegreeWorks',
+                          'mget -O /Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/'
+                          'downloads *dap_req_block* *active_requirements*'])
+    tumble_result = run(['lftp', '--user', 'CVickery', '--pass', lftpwd, 'sftp://st-edge.cuny.edu'],
+                        input=commands, text=True, stdout=sys.stdout)
+    if tumble_result.returncode != 0:
       front_matter += '<p>Tumbleweed download <strong>FAILED</strong>.</p>'
       print('  Tumbleweed download FAILED.')
 else:
   front_matter += f'<p>Tumbleweed not available from {hostname}</p>'
   print(f'Tumbleweed not available from {hostname}')
-
 
 db_cols = ['institution', 'requirement_id', 'block_type', 'block_value', 'title', 'period_start',
            'period_stop', 'school', 'degree', 'college', 'major1', 'major2', 'concentration',
@@ -206,22 +211,24 @@ vals = '(' + vals.strip(', ') + ')'
 
 DB_Record = namedtuple('DB_Record', db_cols)
 
-file = Path(args.file)
-from_archive = ''
+# The default--or explicit--file is downloads/dap_req_block.csv
+file = Path('downloads/dgw_dap_req_block.csv')
 if file.exists():
-  file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
-else:
-  # Try the latest archived version
-  archive_files = archives_dir.glob('dgw_dap_req_block*.csv')
-  latest = None
-  for archive_file in archive_files:
-    if latest is None or archive_file.stat().st_mtime > latest.stat().st_mtime:
-      latest = archive_file
-  if latest is None:
-    sys.exit(f'{file} does not exist, and no archive found')
-  file = latest
-  from_archive = ' from archive'
-  file_date = f'{datetime.datetime.fromtimestamp(int(file.stat().st_mtime))}'[0:10]
+  # Move the downloads file to archives, where it will be the "latest"
+  file_date = str(datetime.date.fromtimestamp(int(file.stat().st_mtime)))
+  new_name = file.name.replace('.csv', f'_{file_date}.csv')
+  file.rename(Path(archives_dir, new_name))
+
+# The default or explicit file is not available: try the latest archived dap_req_block.csv
+archive_files = archives_dir.glob('dgw_dap_req_block*.csv')
+latest = None
+for archive_file in archive_files:
+  if latest is None or archive_file.stat().st_mtime > latest.stat().st_mtime:
+    latest = archive_file
+if latest is None:
+  sys.exit(f'{file.parent}/{file.name} does not exist, and no archive found')
+file = latest
+file_date = str(datetime.date.fromtimestamp(int(file.stat().st_mtime)))
 
 if file.suffix.lower() == '.xml':
   generator = xml_generator
@@ -235,7 +242,6 @@ empty_parse_tree = json.dumps({})
 irdw_load_date = None
 num_rows = num_inserted = num_updated = num_parsed = 0
 
-print(f'Process {file.name}')
 for row in generator(file):
   num_rows += 1
 
@@ -263,7 +269,7 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
       if irdw_load_date is None:
         irdw_load_date = load_date
         log_file = open(f'./Logs/update_requirement_blocks_{irdw_load_date}.log', 'w')
-        print(f'Using {file.name} {file_date} with irdw_load_date {irdw_load_date}{from_archive}')
+        print(f'Using {file.name} with irdw_load_date {irdw_load_date}')
 
       if irdw_load_date != load_date:
         sys.exit(f'dap_req_block irdw_load_date ({load_date}) is not “{irdw_load_date}”'
