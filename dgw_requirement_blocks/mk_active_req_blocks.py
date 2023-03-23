@@ -69,15 +69,14 @@ if __name__ == '__main__':
       size_ok = True
 
     if size_ok:
-      # No archived or download is within tolerance
-      downloaded.rename(Path(archives_dir, new_name))
-      latest_active = downloaded
+      # download is within tolerance
+      latest_active = downloaded.rename(Path(archives_dir, new_name))
 
   if latest_active is None:
-    # Nothing in archive and nothing is downloads
-    exit('mk_active_req_blocks: no dgw_ir_active_requirements file')
+    # Fatal
+    exit('Make active_req_blocks: no dgw_ir_active_requirements file')
   else:
-    print(f'mk_active_req_blocks: Using {latest_active.name}')
+    print(f'Make active_req_blocks: Using {latest_active.parent}/{latest_active.name}')
 
   # Create the table of active requirement blocks.
   # Include dap_req_block metadata as well as active enrollment data by term
@@ -199,4 +198,4 @@ if __name__ == '__main__':
 
 seconds = int(round(time.time() - start))
 mins, secs = divmod(seconds, 60)
-print(f'  mk_active_req_blocks took {mins} min {secs} sec')
+print(f'Make active_req_blocks took {mins} min {secs} sec')

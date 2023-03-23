@@ -19,7 +19,6 @@ def check_size(first: float, second: float, tolerance: float) -> bool:
   except ValueError:
     exit(f'{tolerance} is not a number')
 
-  print(first_value, second_value, tolerance_value)
   return tolerance_value > 0.0 and abs(first_value - second_value) <= tolerance_value
 
 
