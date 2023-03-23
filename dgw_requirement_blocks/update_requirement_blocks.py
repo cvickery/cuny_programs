@@ -192,7 +192,10 @@ if is_cuny:
     commands = '\n'.join(['cd ODI-Queens/DegreeWorks',
                           'mget -O /Users/vickery/Projects/cuny_programs/dgw_requirement_blocks/'
                           'downloads *dap_req_block* *active_requirements*'])
-    tumble_result = run(['lftp', '--user', 'CVickery', '--pass', lftpwd, 'sftp://st-edge.cuny.edu'],
+    tumble_result = run(['/usr/local/bin/lftp',
+                         '--user', 'CVickery',
+                         '--pass', lftpwd,
+                         'sftp://st-edge.cuny.edu'],
                         input=commands, text=True, stdout=sys.stdout)
     if tumble_result.returncode != 0:
       front_matter += '<p>Tumbleweed download <strong>FAILED</strong>.</p>'
