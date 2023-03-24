@@ -477,80 +477,80 @@ else:
   print(msg)
   front_matter += f'<p>{msg}</p>'
 
-if args.timing:
-  m, s = divmod(int(round(time.time())) - start_time, 60)
-  h, m = divmod(m, 60)
-  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
+  if args.timing:
+    m, s = divmod(int(round(time.time())) - start_time, 60)
+    h, m = divmod(m, 60)
+    print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-# Regenerate program CSV and HTML files
-print('Regenerate CSV and HTML')
-substep_start = time.time()
-run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stdout)
-if args.timing:
-  m, s = divmod(int(round(time.time() - substep_start)), 60)
-  h, m = divmod(m, 60)
-  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
+  # Run timeouts in case updates encountered any.
+  print('Parse timeouts')
+  substep_start = time.time()
+  run(['../../dgw_processor/parse_timeouts.py'], stdout=sys.stdout, stderr=sys.stdout)
+  if args.timing:
+    m, s = divmod(int(round(time.time() - substep_start)), 60)
+    h, m = divmod(m, 60)
+    print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-# Run timeouts in case updates encountered any.
-print('Parse timeouts')
-substep_start = time.time()
-run(['../../dgw_processor/parse_timeouts.py'], stdout=sys.stdout, stderr=sys.stdout)
-if args.timing:
-  m, s = divmod(int(round(time.time() - substep_start)), 60)
-  h, m = divmod(m, 60)
-  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
+  # Update quarantined list in case updates fixed any.
+  print('Update quarantined list')
+  substep_start = time.time()
+  run(['../../dgw_processor/parse_quarantined.py'], stdout=sys.stdout, stderr=sys.stdout)
+  if args.timing:
+    m, s = divmod(int(round(time.time() - substep_start)), 60)
+    h, m = divmod(m, 60)
+    print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-# Update quarantined list in case updates fixed any.
-print('Update quarantined list')
-substep_start = time.time()
-run(['../../dgw_processor/parse_quarantined.py'], stdout=sys.stdout, stderr=sys.stdout)
-if args.timing:
-  m, s = divmod(int(round(time.time() - substep_start)), 60)
-  h, m = divmod(m, 60)
-  print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
+  # Regenerate program CSV and HTML files
+  print('Regenerate CSV and HTML')
+  substep_start = time.time()
+  run(['../generate_html.py'], stdout=sys.stdout, stderr=sys.stdout)
+  if args.timing:
+    m, s = divmod(int(round(time.time() - substep_start)), 60)
+    h, m = divmod(m, 60)
+    print(f'  {int(h):02}:{int(m):02}:{round(s):02}')
 
-# Create table of active requirement blocks for Course Mapper to reference
-print('Build active_req_blocks')
-result = run(['./mk_active_req_blocks.py'], stdout=sys.stdout, stderr=sys.stdout)
-if result.returncode != 0:
-  print('Build active_req_blocks FAILED!')
-
-# Run the course mapper on all active requirement blocks
-print('Run Course Mapper')
-substep_start = time.time()
-course_mapper = Path(home_dir, 'Projects/course_mapper')
-csv_repository = Path(home_dir, 'Projects/transfer_app/static/csv')
-result = run([Path(course_mapper, 'course_mapper.py')],
-             stdout=sys.stdout, stderr=sys.stdout)
-if result.returncode != 0:
-  print('  Course Mapper FAILED!')
-  front_matter += '<p><strong>Course Mapper Failed!</strong></p>'
-else:
-  print('Copy Course Mapper results to transfer_app/static/csv/')
-  mapper_files = Path(course_mapper, 'reports').glob('dgw_*')
-  for mapper_file in mapper_files:
-    shutil.copy2(mapper_file, csv_repository)
-
-  print('Email mapping files status report')
-  html_msg = status_report(file_date, load_date, front_matter)
-  if is_cuny:
-    subject = 'Course Mapper files report'
-    to_list = [{'name': 'Christopher Buonocore', 'email': 'Christopher.Buonocore@lehman.cuny.edu'},
-               {'name': 'Elkin Urrea', 'email': 'Elkin.Urrea@lehman.cuny.edu'},
-               {'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
-               {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
-               ]
-  else:
-    subject = f'Course Mapper files report from {hostname}'
-    to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
-  sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
-  send_message(to_list, sender, subject, html_msg)
-
-  print('Load mapping tables')
-  result = run([Path(course_mapper, 'load_mapping_tables.py')],
-               stdout=sys.stdout, stderr=sys.stdout)
+  # Create table of active requirement blocks for Course Mapper to reference
+  print('Build active_req_blocks')
+  result = run(['./mk_active_req_blocks.py'], stdout=sys.stdout, stderr=sys.stdout)
   if result.returncode != 0:
-    print('  Load mapping tables FAILED!')
+    print('\nBUILD active_req_blocks FAILED! Not running mapper.')
+  else:
+    # Run the course mapper on all active requirement blocks
+    print('Run Course Mapper')
+    substep_start = time.time()
+    course_mapper = Path(home_dir, 'Projects/course_mapper')
+    csv_repository = Path(home_dir, 'Projects/transfer_app/static/csv')
+    result = run([Path(course_mapper, 'course_mapper.py')],
+                 stdout=sys.stdout, stderr=sys.stdout)
+    if result.returncode != 0:
+      print('  Course Mapper FAILED!')
+      front_matter += '<p><strong>Course Mapper Failed!</strong></p>'
+    else:
+      print('Copy Course Mapper results to transfer_app/static/csv/')
+      mapper_files = Path(course_mapper, 'reports').glob('dgw_*')
+      for mapper_file in mapper_files:
+        shutil.copy2(mapper_file, csv_repository)
+
+      print('Load mapping tables')
+      result = run([Path(course_mapper, 'load_mapping_tables.py')],
+                   stdout=sys.stdout, stderr=sys.stdout)
+      if result.returncode != 0:
+        print('  Load mapping tables FAILED!')
+
+    print('Email mapping files status report')
+    html_msg = status_report(file_date, load_date, front_matter)
+    if is_cuny:
+      subject = 'Course Mapper files report'
+      to_list = [{'name': 'Christopher Buonocore', 'email': 'Christopher.Buonocore@lehman.cuny.edu'},
+                 {'name': 'Elkin Urrea', 'email': 'Elkin.Urrea@lehman.cuny.edu'},
+                 {'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
+                 {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
+                 ]
+    else:
+      subject = f'Course Mapper files report from {hostname}'
+      to_list = [{'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'}]
+    sender = {'name': 'T-Rex Labs', 'email': 'christopher.vickery@qc.cuny.edu'}
+    send_message(to_list, sender, subject, html_msg)
 
 if args.timing:
   m, s = divmod(int(round(time.time() - substep_start)), 60)
