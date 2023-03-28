@@ -71,6 +71,7 @@ if __name__ == '__main__':
     if size_ok:
       # download is within tolerance
       latest_active = downloaded.rename(Path(archives_dir, new_name))
+      downloaded.unlink()
 
   if latest_active is None:
     # Fatal

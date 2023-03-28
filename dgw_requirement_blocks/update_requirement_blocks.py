@@ -541,7 +541,8 @@ else:
     html_msg = status_report(file_date, load_date, front_matter)
     if is_cuny:
       subject = 'Course Mapper files report'
-      to_list = [{'name': 'Christopher Buonocore', 'email': 'Christopher.Buonocore@lehman.cuny.edu'},
+      to_list = [{'name': 'Christopher Buonocore',
+                  'email': 'Christopher.Buonocore@lehman.cuny.edu'},
                  {'name': 'Elkin Urrea', 'email': 'Elkin.Urrea@lehman.cuny.edu'},
                  {'name': 'David Ling', 'email': 'David.Ling@lehman.cuny.edu'},
                  {'name': 'Christopher Vickery', 'email': 'Christopher.Vickery@qc.cuny.edu'},
