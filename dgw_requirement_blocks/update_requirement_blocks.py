@@ -194,7 +194,7 @@ if is_cuny:
                           'downloads *dap_req_block* *active_requirements*'])
     tumble_result = run(['/usr/local/bin/lftp',
                          '--user', 'CVickery',
-                         '--pass', f"'{lftpwd}'",
+                         '--pass', lftpwd,
                          'sftp://st-edge.cuny.edu'],
                         input=commands, text=True, stdout=sys.stdout)
     if tumble_result.returncode != 0:
