@@ -165,6 +165,7 @@ parser.add_argument('--parse', dest='parse', action='store_true')
 parser.add_argument('--no_parse', dest='parse', action='store_false')
 parser.add_argument('--log_unchanged', action='store_true')
 parser.add_argument('--skip_downloads', action='store_true')
+parser.add_argument('--skip_email', action='store_true')
 parser.add_argument('--delimiter', default=',')
 parser.add_argument('--quotechar', default='"')
 parser.add_argument('--timelimit', default='60')
@@ -455,7 +456,7 @@ if file.parent.name != 'archives':
 mtime = time.mktime(irdw_load_date.timetuple())
 os.utime(file, (mtime, mtime))
 
-# Summarize DAP_REQ_BLOCK processing. Log message in caps is an experiment.
+# Summarize DAP_REQ_BLOCK processing.
 if num_updated + num_inserted == 0:
   # Make this easy to see in the email report to me
   print('\nNO NEW OR UPDATED BLOCKS FOUND\n')
@@ -539,7 +540,7 @@ else:
 
     print('Email mapping files status report')
     html_msg = status_report(file_date, load_date, front_matter)
-    if is_cuny:
+    if is_cuny and not args.skip_email:
       subject = 'Course Mapper files report'
       to_list = [{'name': 'Christopher Buonocore',
                   'email': 'Christopher.Buonocore@lehman.cuny.edu'},
