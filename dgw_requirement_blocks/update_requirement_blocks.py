@@ -512,6 +512,8 @@ else:
 
   # Create table of active requirement blocks for Course Mapper to reference
   print('Build active_req_blocks')
+  front_matter += ('<p><strong>NOTE:</strong> Building active_req_blocks drops dgw.plans and '
+                   'dgw.subplans.</p>')
   result = run(['./mk_active_req_blocks.py'], stdout=sys.stdout, stderr=sys.stdout)
   if result.returncode != 0:
     print('\nBUILD active_req_blocks FAILED! Not running mapper.')

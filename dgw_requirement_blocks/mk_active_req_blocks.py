@@ -84,7 +84,7 @@ if __name__ == '__main__':
     with conn.cursor(row_factory=namedtuple_row) as cursor:
 
       cursor.execute("""
-      drop table if exists active_req_blocks;
+      drop table if exists active_req_blocks cascade;
 
       create table active_req_blocks (
       institution text,
