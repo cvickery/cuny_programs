@@ -97,7 +97,8 @@ if __name__ == '__main__':
       period_stop text,
       term_info jsonb,
       foreign key (institution, requirement_id) references requirement_blocks,
-      primary key (institution, requirement_id));
+      primary key (institution, requirement_id),
+      constraint for_plans unique (institution, requirement_id, block_value));
       """)
 
       # Initialize the is_active column of the requirement_blocks table
