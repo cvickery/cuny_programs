@@ -1,5 +1,5 @@
 #! /usr/local/bin/python3
-
+"""Generate HTML/CSV files for registered_programs page."""
 import json
 import psycopg
 import sys
@@ -17,9 +17,7 @@ DEBUG = False
 # fix_title()
 # -------------------------------------------------------------------------------------------------
 def fix_title(str):
-  """ Create a better titlecase string, taking specifics of the registered_programs dataset into
-      account.
-  """
+  """Create a titlecase string, taking specifics of the registered_programs table into account."""
   return (str.strip(' *')
              .title()
              .replace('Cuny', 'CUNY')
@@ -36,11 +34,12 @@ def fix_title(str):
 # andor_list()
 # -------------------------------------------------------------------------------------------------
 def andor_list(items, andor='and'):
-  """ Join a list of strings into a comma-separated con/disjunction.
-      Forms:
-        a             a
-        a and b       a or b
-        a, b, and c   a, b, or c
+  """Join a list of strings into a comma-separated con/disjunction.
+
+  Forms:
+    a             a
+    a and b       a or b
+    a, b, and c   a, b, or c
   """
   return_str = ', '.join(items)
   k = return_str.rfind(',')
@@ -55,8 +54,7 @@ def andor_list(items, andor='and'):
 # generate_html()
 # -------------------------------------------------------------------------------------------------
 def generate_html():
-  """ Generate the html for registered programs rows
-  """
+  """Generate the html for registered programs rows."""
   with psycopg.connect('dbname=cuny_curriculum') as conn:
     with conn.cursor(row_factory=namedtuple_row) as cursor:
       with conn.cursor(row_factory=namedtuple_row) as inner_cursor:
@@ -270,7 +268,10 @@ def generate_html():
                                     where target_institution = %s
                                       and program_code = %s
                                       and award = %s
-                           """, (json.dumps(csv_values), row.target_institution, row.program_code, row.award))
+                           """, (json.dumps(csv_values),
+                                 row.target_institution,
+                                 row.program_code,
+                                 row.award))
 
 
 if __name__ == '__main__':
