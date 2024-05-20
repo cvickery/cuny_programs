@@ -105,7 +105,7 @@ def lookup_programs(institution, verbose=False, debug=False):
   if verbose:
     print(f'Fetching list of registered programs for {institution_name} ...', file=sys.stderr)
   try:
-    url = 'http://www.nysed.gov/coms/rp090/IRPS2A'
+    url = 'https://www2.nysed.gov/coms/rp090/IRPS2A'
     r = requests.post(url, data={'SEARCHES': '1', 'instid': f'{institution_id}'})
     html_document = document_fromstring(r.content)
     h4s = [h4.text_content() for h4 in html_document.cssselect('h4')]
@@ -201,7 +201,7 @@ def lookup_programs(institution, verbose=False, debug=False):
 
     for_award = None
     try:
-      r = requests.get(f'http://www.nysed.gov/COMS/RP090/IRPSL3?PROGCD={program.program_code}')
+      r = requests.get(f'https://www2.nysed.gov/COMS/RP090/IRPSL3?PROGCD={program.program_code}')
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as err:
       send_message([{'name': 'Christopher Vickery', 'email': 'cvickery@qc.cuny.edu'}],
                    {'name': 'Transfer App', 'email': 'cvickery@qc.cuny.edu'},
