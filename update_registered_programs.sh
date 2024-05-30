@@ -74,17 +74,17 @@ function restore_from_archive()
     # -------------------------------------------------------------------------------------------------
 
     # (Re-)create the table.
-    echo -n "(Re-)create the registered_programs table ... " >> ./update.log
+    echo "(Re-)create the registered_programs table ... " >> ./update.log
 
     # Generate/update the registered_programs table for all colleges
     for inst in bar bcc bkl bmc cty csi grd hos htr jjc kcc lag law leh mec ncc nyt qcc qns sps yrk
     do
       if ! ./registered_programs.py -vu $inst
-      then  echo "Update FAILED for $inst" >> ./update.log
+      then  echo "  $inst FAILED" >> ./update.log
              #  Restore from latest archive
              restore_from_archive registered_programs
              break
-      else  echo 'done.' >> ./update.log
+      else  echo "  $inst OK" >> ./update.log
       fi
     done
     echo "${SECONDS} sec" >> ./update.log
