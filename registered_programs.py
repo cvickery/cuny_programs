@@ -4,13 +4,13 @@
 
       This is a two-phase process:
 
-      I. Make a POST request to http://www.nysed.gov/coms/rp090/IRPS2A to get a web page listing
+      I. Make a POST request to https://www.nysed.gov/coms/rp090/IRPS2A to get a web page listing
       all programs for a college, and extract the numeric program codes and Unit Codes.
 
-      II. Make a GET request to http://www.nysed.gov/COMS/RP090/IRPSL3 for each of the program codes
-      retrieved from Phase I, and analyze each page returned to extract details about the program
-      needed to generate the desired output, which may be a .csv file, a HTML table, or a database
-      table.
+      II. Make a GET request to https://www.nysed.gov/COMS/RP090/IRPSL3 for each of the program
+      codes retrieved from Phase I, and analyze each page returned to extract details about the
+      program needed to generate the desired output, which may be a .csv file, a HTML table, or a
+      database table.
 
 April 2019:
       Unit Code is new: “Applications for program revisions, title changes and program
