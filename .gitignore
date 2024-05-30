@@ -1,7 +1,8 @@
 /__pycache__/
-/dgw_requirement_blocks/
 /.DS_Store
 /.aliases
-/registered_programs.log
 /archives/
+/dgw_requirement_blocks/
 /ipeds/
+/registered_programs.log
+/update.log
