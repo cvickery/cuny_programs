@@ -2,7 +2,7 @@
 
 # Archive that might/will get clobbered. The table must exist and have more than zero rows,
 # and the archive for today must not exist.
-today=`date +%Y-%m-%d`
+today=$(date +%Y-%m-%d)
 unset failure
 
 for table in hegis_areas \
@@ -11,28 +11,26 @@ nys_institutions \
 registered_programs \
 requirement_blocks
 do
-  n=`psql -tqX cuny_curriculum -c "select count(*) from $table" 2> /dev/null`
-  if [[ $? != 0 ]]
-  then echo "  $table NOT archived: no table"
+  if n=$(psql -tqX cuny_curriculum -c "select count(*) from ${table}" 2> /dev/null)
+  then echo "  ${table} NOT archived: no table"
        continue
   fi
   if [[ $n == 0 ]]
-  then echo "  $table NOT archived: is empty"
+  then echo "  ${table} NOT archived: is empty"
        continue
   fi
-  file=./archives/${table}_${today}.sql
-  if [[ -e $file ]]
-  then size=`wc -c < $file 2> /dev/null`
-    if [[ $size > 0 ]]
-    then echo "  $table NOT archived: non-empty archive for $today exists"
+  file="./archives/${table}_${today}.sql"
+  if [[ -e ${file} ]]
+  then size=$(wc -c < "${file}" 2> /dev/null)
+    if [[ ${size} -gt 0 ]]
+    then echo "  ${table} NOT archived: non-empty archive for ${today} exists"
          continue
     fi
   fi
 
-  pg_dump cuny_curriculum -t $table > $file
-  if [[ $? == 0 ]]
-  then echo "  Archived $table to $file OK"
-  else echo "  Archive $table to $file FAILED" 1>&2
+  if pg_dump cuny_curriculum -t ${table} > "${file}"
+  then echo "  Archived ${table} to ${file} OK"
+  else echo "  Archive ${table} to ${file} FAILED" 1>&2
        failure=true
   fi
 done
