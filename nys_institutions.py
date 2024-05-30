@@ -24,27 +24,27 @@ from typing import Dict, Tuple
 #  latter entries are not actually used, but they come in as part of the NYSED website scraping
 #  process.
 cuny_institutions: Dict[str, Tuple] = dict()
-cuny_institutions['bar'] = ('33050', 'CUNY BARUCH COLLEGE')
-cuny_institutions['bcc'] = ('37100', 'BRONX COMM COLL')
-cuny_institutions['bkl'] = ('33100', 'CUNY BROOKLYN COLL')
-cuny_institutions['bmc'] = ('37050', 'BOROUGH MANHATTAN COMM C')
-cuny_institutions['cty'] = ('33150', 'CUNY CITY COLLEGE')
-cuny_institutions['csi'] = ('33180', 'CUNY COLL STATEN ISLAND')
-cuny_institutions['grd'] = ('31050', 'CUNY GRADUATE SCHOOL')
-cuny_institutions['hos'] = ('37150', 'HOSTOS COMM COLL')
-cuny_institutions['htr'] = ('33250', 'CUNY HUNTER COLLEGE')
-cuny_institutions['jjc'] = ('33300', 'CUNY JOHN JAY COLLEGE')
-cuny_institutions['kcc'] = ('37250', 'KINGSBOROUGH COMM COLL')
-cuny_institutions['lag'] = ('37200', 'LA GUARDIA COMM COLL')
-cuny_institutions['law'] = ('31100', 'CUNY LAW SCHOOL AT QUEENS')
-cuny_institutions['leh'] = ('33200', 'CUNY LEHMAN COLLEGE')
-cuny_institutions['mec'] = ('37280', 'MEDGAR EVERS COLL')
-cuny_institutions['ncc'] = ('33350', 'STELLA & CHAS GUTTMAN CC')
-cuny_institutions['nyt'] = ('33380', 'NYC COLLEGE OF TECHNOLOGY')
-cuny_institutions['qcc'] = ('37350', 'QUEENSBOROUGH COMM COLL')
-cuny_institutions['qns'] = ('33400', 'CUNY QUEENS COLLEGE')
-cuny_institutions['sps'] = ('31051', 'CUNY SCHOOL OF PROF STUDY')
-cuny_institutions['yrk'] = ('33500', 'CUNY YORK COLLEGE')
+cuny_institutions['bar'] = ('330500', 'CUNY BARUCH COLLEGE')
+cuny_institutions['bcc'] = ('371000', 'BRONX COMM COLL')
+cuny_institutions['bkl'] = ('331000', 'CUNY BROOKLYN COLL')
+cuny_institutions['bmc'] = ('370500', 'BOROUGH MANHATTAN COMM C')
+cuny_institutions['cty'] = ('331500', 'CUNY CITY COLLEGE')
+cuny_institutions['csi'] = ('331800', 'CUNY COLL STATEN ISLAND')
+cuny_institutions['grd'] = ('310500', 'CUNY GRADUATE SCHOOL')
+cuny_institutions['hos'] = ('371500', 'HOSTOS COMM COLL')
+cuny_institutions['htr'] = ('332500', 'CUNY HUNTER COLLEGE')
+cuny_institutions['jjc'] = ('333000', 'CUNY JOHN JAY COLLEGE')
+cuny_institutions['kcc'] = ('372500', 'KINGSBOROUGH COMM COLL')
+cuny_institutions['lag'] = ('372000', 'LA GUARDIA COMM COLL')
+cuny_institutions['law'] = ('311000', 'CUNY LAW SCHOOL AT QUEENS')
+cuny_institutions['leh'] = ('332000', 'CUNY LEHMAN COLLEGE')
+cuny_institutions['mec'] = ('372800', 'MEDGAR EVERS COLL')
+cuny_institutions['ncc'] = ('333500', 'STELLA & CHAS GUTTMAN CC')
+cuny_institutions['nyt'] = ('333800', 'NYC COLLEGE OF TECHNOLOGY')
+cuny_institutions['qcc'] = ('373500', 'QUEENSBOROUGH COMM COLL')
+cuny_institutions['qns'] = ('334000', 'CUNY QUEENS COLLEGE')
+cuny_institutions['sps'] = ('310510', 'CUNY SCHOOL OF PROF STUDY')
+cuny_institutions['yrk'] = ('335000', 'CUNY YORK COLLEGE')
 
 # Scrape the NYSED website for institution id numbers and names. Sending a POST request with the
 # name "searches" and value "1" gets a page with a form with all institutions and ids as options
@@ -71,7 +71,7 @@ headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0
            'Sec-Fetch-Site': 'same-origin',
            'Sec-Fetch-User': '?1'}
 script_file = Path(__file__).name
-url = 'https://www.nysed.gov/coms/rp090/IRPSL1/'
+url = 'https://www2.nysed.gov/coms/rp090/IRPSL1/'
 response = requests.post(url, data={'Searches': "1"})
 if response.status_code == requests.codes.ok:
   html_document = document_fromstring(response.content)
