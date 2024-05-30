@@ -27,7 +27,7 @@ function restore_from_archive()
     echo "Unable to cd to cuny_programs project dir" |"$HOME"/bin/sendemail -s "Update failed" $sysop;
     exit 1; }
 
-  echo '<pre>'Start update_registered_programs.sh on "$(hostname)" at "$(date)" > ./update.log
+  echo "<pre>Start update_registered_programs.sh on $(hostname) at $(date)" > ./update.log
   SECONDS=0
 
   # Archive tables that might/will get clobbered.
