@@ -11,7 +11,7 @@ nys_institutions \
 registered_programs \
 requirement_blocks
 do
-  if n=$(psql -tqX cuny_curriculum -c "select count(*) from ${table}" 2> /dev/null)
+  if ! n=$(psql -tqX cuny_curriculum -c "select count(*) from ${table}")
   then echo "  ${table} NOT archived: no table"
        continue
   fi
