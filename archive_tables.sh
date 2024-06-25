@@ -8,8 +8,7 @@ unset failure
 for table in hegis_areas \
 hegis_codes \
 nys_institutions \
-registered_programs \
-requirement_blocks
+registered_programs
 do
   if ! n=$(psql -tqX cuny_curriculum -c "select count(*) from ${table}")
   then echo "  ${table} NOT archived: no table"
