@@ -24,7 +24,8 @@ function restore_from_archive()
   "$HOME"/bin/sendemail -s "Start Registered Programs on $(hostname)" $sysop <<< "$(date)"
 
   cd "$HOME"/Projects/cuny_programs || {
-    echo "Unable to cd to cuny_programs project dir" |"$HOME"/bin/sendemail -s "Update failed" $sysop;
+    subject="Registered Programs on $(hostname) FAILED"
+    echo "Unable to cd to cuny_programs project dir" |"$HOME"/bin/sendemail -s "$subject" $sysop;
     exit 1; }
 
   echo "<pre>Start update_registered_programs.sh on $(hostname) at $(date)" > ./update.log

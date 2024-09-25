@@ -3,7 +3,7 @@
 # Archive that might/will get clobbered. The table must exist and have more than zero rows,
 # and the archive for today must not exist.
 today=$(date +%Y-%m-%d)
-unset failure
+exit_status=0
 
 for table in hegis_areas \
 hegis_codes \
@@ -12,6 +12,7 @@ registered_programs
 do
   if ! n=$(psql -tqX cuny_curriculum -c "select count(*) from ${table}")
   then echo "  ${table} NOT archived: no table"
+       exit_status=1
        continue
   fi
   if [[ $n == 0 ]]
@@ -23,6 +24,7 @@ do
   then size=$(wc -c < "${file}" 2> /dev/null)
     if [[ ${size} -gt 0 ]]
     then echo "  ${table} NOT archived: non-empty archive for ${today} exists"
+         exit_status=1
          continue
     fi
   fi
@@ -30,11 +32,9 @@ do
   if pg_dump cuny_curriculum -t ${table} > "${file}"
   then echo "  Archived ${table} to ${file} OK"
   else echo "  Archive ${table} to ${file} FAILED" 1>&2
-       failure=true
+       exit_status=1
   fi
 done
 
 # if any archive failed, signal the error
-if [[ $failure ]]
-then exit 1
-fi
+exit $exit_status
