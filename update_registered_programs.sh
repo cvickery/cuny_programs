@@ -2,18 +2,18 @@
 
 function restore_from_archive()
 {
-  archives="./archives/${1}*"
-  n=${#archives[@]}
-  if [[ $n -gt 0 ]]
-  then  echo "RESTORING ${archives[$n-1]}" >> ./update.log
+  table_name=$1
+  archive=$(find ./archives -name "${table_name}*.sql" -type f | sort -t_ -k2 -r | head -n 1)
+  if [ -n "$archive" ]
+  then  echo "RESTORING ${archive}" >> ./update.log
         (
           export PGOPTIONS='--client-min-messages=warning'
           psql -tqX cuny_curriculum -c "drop table if exists $1 cascade"
-          psql -tqX cuny_curriculum < "${archives[$n-1]}"
+          psql -tqX cuny_curriculum < "${archive}"
         )
         return 0
 
-  else echo "ERROR: Unable to restore $1." >> ./update.log
+  else echo "ERROR: No archived dump available for restoring $table_name." >> ./update.log
        return 1
   fi
 }
