@@ -23,8 +23,8 @@ do
   if [[ -e ${file} ]]
   then size=$(wc -c < "${file}" 2> /dev/null)
     if [[ ${size} -gt 0 ]]
-    then echo "  ${table} NOT archived: non-empty archive for ${today} exists"
-         exit_status=1
+    then echo "  ${table} NOTE: replacing non-empty archive for ${table}_${today}"
+         # OK to continue
          continue
     fi
   fi
