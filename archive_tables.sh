@@ -3,6 +3,13 @@
 # Archive that might/will get clobbered. The table must exist and have more than zero rows,
 # and the archive for today must not exist.
 today=$(date +%Y-%m-%d)
+
+PSQL_PATH=$(which psql)
+if [ -z "$PSQL_PATH" ]; then
+  echo "Error: psql not found in PATH"
+  exit 1
+fi
+
 exit_status=0
 
 for table in hegis_areas \
@@ -10,7 +17,7 @@ hegis_codes \
 nys_institutions \
 registered_programs
 do
-  if ! n=$(psql -tqX cuny_curriculum -c "select count(*) from ${table}")
+  if ! n=$("$PSQL_PATH" -tqX cuny_curriculum -c "select count(*) from ${table}")
   then echo "  ${table} NOT archived: no table"
        exit_status=1
        continue

@@ -1,5 +1,11 @@
 #! /usr/local/bin/bash
 
+PSQL_PATH=$(which psql)
+if [ -z "$PSQL_PATH" ]; then
+  echo "Error: psql not found in PATH"
+  exit 1
+fi
+
 function restore_from_archive()
 {
   table_name=$1
@@ -8,8 +14,8 @@ function restore_from_archive()
   then  echo "RESTORING ${archive}" >> ./update.log
         (
           export PGOPTIONS='--client-min-messages=warning'
-          psql -tqX cuny_curriculum -c "drop table if exists $1 cascade"
-          psql -tqX cuny_curriculum < "${archive}"
+          "$PSQL_PATH" -tqX cuny_curriculum -c "drop table if exists $1 cascade"
+          "$PSQL_PATH" -tqX cuny_curriculum < "${archive}"
         )
         return 0
 
