@@ -1,6 +1,5 @@
 """ The RegisteredProgram class, which is a list of NYS-registered academic programs.
 """
-import sys
 import re
 from typing import Dict, Any
 from recordclass import recordclass

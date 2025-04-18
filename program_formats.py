@@ -6,15 +6,11 @@
     __version__ = 'July 2019'
 
 """
-import sys
-import re
-import argparse
 
 from datetime import datetime
 
 import requests
 from lxml.html import document_fromstring
-import cssselect
 
 import psycopg2
 from psycopg2.extras import NamedTupleCursor
@@ -36,7 +32,7 @@ r = requests.get('http://www.nysed.gov/college-university-evaluation/format-defi
 html_document = document_fromstring(r.content)
 for p in html_document.cssselect('.field__items p'):
   name, description = p.text_content().split(':', 1)
-  q = f'insert into program_formats values (%s, %s)'
+  q = 'insert into program_formats values (%s, %s)'
   cursor.execute(q, (name.strip(), description.strip()))
 
 # There is a note on the website that tells when it was last updated.

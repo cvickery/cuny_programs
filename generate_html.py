@@ -60,17 +60,18 @@ def generate_html():
       with conn.cursor(row_factory=namedtuple_row) as inner_cursor:
 
         # Find out what CUNY colleges are in the db
-        cursor.execute("""
-                       select distinct r.target_institution as inst, i.name
-                       from registered_programs r, cuny_institutions i, nys_institutions n
-                       where i.code = upper(r.target_institution||'01')
-                       order by i.name
-                       """)
+        # This table is no longer used here. But it is used by the requirement_mapper projecct
+        # cursor.execute("""
+        # select distinct r.target_institution as inst, i.name
+        # from registered_programs r, cuny_institutions i, nys_institutions n
+        # where i.code = upper(r.target_institution||'01')
+        # order by i.name
+        # """)
 
-        if cursor.rowcount < 1:
-          exit("No registered-program information for CUNY colleges available at this time")
+        # if cursor.rowcount < 1:
+          # exit("No registered-program information for CUNY colleges available at this time")
 
-        cuny_institutions = dict([(row.inst, {'name': row.name}) for row in cursor])
+        # cuny_institutions = dict([(row.inst, {'name': row.name}) for row in cursor])
 
         cursor.execute('select hegis_code, description from hegis_codes')
         hegis_codes = {row.hegis_code: row.description for row in cursor}
@@ -155,7 +156,7 @@ def generate_html():
           try:
             description = hegis_codes[html_values[5]]
             element_class = ''
-          except KeyError as ke:
+          except KeyError:
             description = 'Unknown HEGIS Code'
             element_class = ' class="error"'
           html_values[5] = f'<span title="{description}"{element_class}>{html_values[5]}</span>'
@@ -263,7 +264,7 @@ def generate_html():
                                       and award = %s
                           """, (row.target_institution, row.program_code, row.award))
 
-          inner_cursor.execute(f"""update registered_programs
+          inner_cursor.execute("""update registered_programs
                                       set csv= %s
                                     where target_institution = %s
                                       and program_code = %s

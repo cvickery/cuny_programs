@@ -37,7 +37,6 @@ Design Notes
 
 """
 import argparse
-import cssselect
 import csv
 import os
 import psycopg
@@ -149,7 +148,10 @@ def lookup_programs(institution, verbose=False, debug=False):
           break
       if this_institution is None:
         sys.exit(f'Unknown institution in {h4}')
-      assert this_institution == institution, f'h4 wrong institution: {this_institution}\n{h4}'
+
+      if this_institution != institution:
+        print(f'h4 wrong institution: {this_institution}\n{h4}. Ignored')
+        continue
 
       program.new_variant(this_award, this_hegis, this_institution, title=this_title)
       continue
@@ -234,8 +236,8 @@ def lookup_programs(institution, verbose=False, debug=False):
         program_institution = matches.group(5)
 
         if debug:
-          print(f'Program Code # or M/A line: {program.program_code}: "{program_title}" {program_hegis}'
-                f' {program_award} "{program_institution}"')
+          print(f'Program Code # or M/A line: {program.program_code}: "{program_title}" '
+                f'{program_hegis} {program_award} "{program_institution}"')
 
         this_institution = None
         for key in known_institutions.keys():
@@ -244,9 +246,9 @@ def lookup_programs(institution, verbose=False, debug=False):
             break
         assert this_institution is not None, f'\n{this_institution}\n{line}'
 
-        # Create this variant if necessary
-        this_variant = program.new_variant(program_award, program_hegis, this_institution,
-                                           title=program_title)
+        # Create this variant if necessary (Never used)
+        # this_variant = program.new_variant(program_award, program_hegis, this_institution,
+        #                                    title=program_title)
         continue
 
       if token == 'M/I':
@@ -312,8 +314,7 @@ def lookup_programs(institution, verbose=False, debug=False):
         # Extract three booleans.
         matches = re.search(r'(YES|NO).+(YES|NO).+(YES|NO)', line)
         if matches is None:
-          sys.exit('\nUnable to parse eligibility line for program code {}:\n{line}'
-                   .format(program.program_code))
+          sys.exit(f'\nUnable to parse eligibility line for program code {program_code}:\n{line}')
         for variant_tuple in variant_tuples:
           if debug:
             print('Update {} with: {} {} {}'.format(variant_tuple,

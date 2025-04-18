@@ -2,8 +2,6 @@
 
 import psycopg
 
-from datetime import date
-from typing import Dict, Tuple
 from psycopg.rows import namedtuple_row
 
 conn = psycopg.connect('dbname=cuny_curriculum')

@@ -1,11 +1,8 @@
 #! /usr/local/bin/python3
 """Create table of all NYS institutions, with special attention to CUNY."""
 
-import cssselect
 import psycopg
-import re
 import requests
-import sys
 
 from datetime import date
 from lxml.html import document_fromstring
@@ -96,14 +93,14 @@ with psycopg.connect('dbname=cuny_curriculum') as conn:
     """)
     print(f'Adding {len(cuny_institutions)} CUNY institutions')
     for key, value in cuny_institutions.items():
-      cursor.execute(f"""insert into nys_institutions values(%s, %s, %s, %s)
+      cursor.execute("""insert into nys_institutions values(%s, %s, %s, %s)
                       """, (key, value[0], value[1], True))
     print(f'Adding {len(option_elements)} NYS institutions')
     for option_element in option_elements:
       institution_id, institution_name = option_element.split(maxsplit=1)
       assert institution_id.isdecimal()
       institution_id = f'{int(institution_id):06}'
-      cursor.execute(f"""insert into nys_institutions values(%s, %s, %s, %s)
+      cursor.execute("""insert into nys_institutions values(%s, %s, %s, %s)
                       """, (institution_id, institution_id, institution_name.strip(), False))
     today = date.today().strftime('%Y-%m-%d')
     cursor.execute("""
