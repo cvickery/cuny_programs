@@ -33,7 +33,7 @@ cuny_institutions['htr'] = ('332500', 'CUNY HUNTER COLLEGE')
 cuny_institutions['jjc'] = ('333000', 'CUNY JOHN JAY COLLEGE')
 cuny_institutions['kcc'] = ('372500', 'KINGSBOROUGH COMM COLL')
 cuny_institutions['lag'] = ('372000', 'LA GUARDIA COMM COLL')
-cuny_institutions['law'] = ('311000', 'CUNY LAW SCHOOL AT QUEENS')
+cuny_institutions['law'] = ('311000', 'CUNY SCHOOL OF LAW')
 cuny_institutions['leh'] = ('332000', 'CUNY LEHMAN COLLEGE')
 cuny_institutions['mec'] = ('372800', 'MEDGAR EVERS COLL')
 cuny_institutions['ncc'] = ('333500', 'STELLA & CHAS GUTTMAN CC')
@@ -53,8 +53,10 @@ cuny_institutions['yrk'] = ('335000', 'CUNY YORK COLLEGE')
     select element with the colleges as option elements.
 """
 # 'Host': 'www2.nysed.gov', status_code is 404 if present in headers
-headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/110.0',
-           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 '
+                         'Firefox/110.0',
+           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,'
+                     '*/*;q=0.8',
            'Accept-Language': 'en-US,en;q=0.5',
            'Accept-Encoding': 'gzip, deflate, br',
            'Content-Type': 'application/x-www-form-urlencoded',
