@@ -1,3 +1,4 @@
+#! /usr/local/bin/python3
 """Create a dict of nys_institutions."""
 
 import psycopg
