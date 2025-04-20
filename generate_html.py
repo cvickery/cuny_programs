@@ -7,7 +7,6 @@ import sys
 from cip_codes import cip_codes
 from collections import namedtuple
 from datetime import datetime, date
-from knowninstitutions import known_institutions
 from pathlib import Path
 from psycopg.rows import namedtuple_row
 
@@ -59,33 +58,22 @@ def generate_html():
     with conn.cursor(row_factory=namedtuple_row) as cursor:
       with conn.cursor(row_factory=namedtuple_row) as inner_cursor:
 
-        # Find out what CUNY colleges are in the db
-        # This table is no longer used here. But it is used by the requirement_mapper projecct
-        # cursor.execute("""
-        # select distinct r.target_institution as inst, i.name
-        # from registered_programs r, cuny_institutions i, nys_institutions n
-        # where i.code = upper(r.target_institution||'01')
-        # order by i.name
-        # """)
-
-        # if cursor.rowcount < 1:
-          # exit("No registered-program information for CUNY colleges available at this time")
-
-        # cuny_institutions = dict([(row.inst, {'name': row.name}) for row in cursor])
-
+        # Cache HEGIS codes table
         cursor.execute('select hegis_code, description from hegis_codes')
         hegis_codes = {row.hegis_code: row.description for row in cursor}
 
         # List of short CUNY institution names plus known non-CUNY names
-        # Start with the list of all known institutions, then replace CUNY names with their short
-        # names.
+        # Start with the list of all known institutions
+        known_institutions = dict()
+        cursor.execute("select * from nys_institutions")
+        for row in cursor:
+          # id='bar', institution_id='330500', institution_name='CUNY BARUCH COLLEGE', is_cuny=True
+          # id='270300', institution_id='270300', institution_name='ADIRONDACK COMM COLL', is_cuny=False
+          known_institutions[row.id] = (row.institution_id, row.institution_name, row.is_cuny)
+
+        # Get CUNYfirst institution codes for the short names in known_institutions.
         short_names = dict()
-        for key in known_institutions.keys():
-          short_names[key] = known_institutions[key][1]  # value is (prog_code, name, is_cuny)
-        cursor.execute("""
-                          select code, prompt
-                            from cuny_institutions
-                       """)
+        cursor.execute('select code, prompt from cuny_institutions')
         for row in cursor:
           short_names[row.code.lower()[0:3]] = row.prompt
 
