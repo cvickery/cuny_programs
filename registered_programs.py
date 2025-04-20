@@ -7,6 +7,14 @@
       I. Make a POST request to https://www.nysed.gov/coms/rp090/IRPS2A to get a web page listing
       all programs for a college, and extract the numeric program codes and Unit Codes.
 
+      This is the url with the form for getting to the "search by institution" page:
+        https://www2.nysed.gov/heds/IRPSL1.html
+      You can get to this page manually (GET).
+
+      This is url of the search by institution page, but it only works if called from the previous
+      page (POST):
+        https://www2.nysed.gov/coms/rp090/IRPSL1
+
       II. Make a GET request to https://www.nysed.gov/COMS/RP090/IRPSL3 for each of the program
       codes retrieved from Phase I, and analyze each page returned to extract details about the
       program needed to generate the desired output, which may be a .csv file, a HTML table, or a
@@ -150,7 +158,7 @@ def lookup_programs(institution, verbose=False, debug=False):
         sys.exit(f'Unknown institution in {h4}')
 
       if this_institution != institution:
-        print(f'h4 wrong institution: {this_institution}\n{h4}. Ignored')
+        print(f'h4 wrong institution: {this_institution} is not {institution}\n{h4}. Ignored')
         continue
 
       program.new_variant(this_award, this_hegis, this_institution, title=this_title)
@@ -346,11 +354,11 @@ def lookup_programs(institution, verbose=False, debug=False):
           if debug:
             print(f'Update {variant_tuple} with dates: {first_date} {last_date}')
           if (program.variants[variant_tuple].first_registration_date is None
-                  or first_date.replace('PRE-', '19')
-                  < program.variants[variant_tuple].first_registration_date):
+              or first_date.replace('PRE-', '19')
+              < program.variants[variant_tuple].first_registration_date):
             program.variants[variant_tuple].first_registration_date = first_date
           if (program.variants[variant_tuple].last_registration_action is None
-                  or last_date > program.variants[variant_tuple].last_registration_action):
+              or last_date > program.variants[variant_tuple].last_registration_action):
             program.variants[variant_tuple].last_registration_action = last_date
 
   if verbose:
