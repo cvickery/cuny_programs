@@ -58,7 +58,9 @@ from datetime import date
 from lxml.html import document_fromstring
 from registered_program import RegisteredProgram
 from psycopg.rows import namedtuple_row
-from sendemail import send_message
+from sendemail import send_email
+
+hostname = socket.gethostname()
 
 known_institutions = dict()
 with psycopg.connect(dbname='cuny_curriculum') as conn:
@@ -119,11 +121,11 @@ def lookup_programs(institution, verbose=False, debug=False):
     if len(h4s) < 4:
       raise ValueError(f'Got {len(h4s)} H4 elements from {url} for {institution}')
   except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, ValueError) as err:
-    send_message([{'name': 'Christopher Vickery', 'email': 'cvickery@qc.cuny.edu'}],
-                 {'name': 'Transfer App', 'email': 'cvickery@qc.cuny.edu'},
-                 f'Registered Programs Update Failed on {socket.gethostname()}',
-                 f'<p>{err}</p>')
-    exit(f'{__file__}: ERROR: {socket.gethostname()} {err}')
+    send_email(f'Registered Programs ({hostname})',  # from_addr
+               ['Christopher Vickery <cvickery@qc.cuny.edu>'],  # to_addrs
+               f'Registered Programs Update Failed on {hostname}',  # subject
+               f'<p>{err}</p>')  # html_msg
+    exit(f'{__file__}: ERROR: {hostname} {err}')
 
   # The program codes and unit codes are inside H4 elements, in the following sequence:
   #   PROGRAM CODE  : 36256 - ...
@@ -213,10 +215,10 @@ def lookup_programs(institution, verbose=False, debug=False):
     try:
       r = requests.get(f'https://www2.nysed.gov/COMS/RP090/IRPSL3?PROGCD={program.program_code}')
     except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as err:
-      send_message([{'name': 'Christopher Vickery', 'email': 'cvickery@qc.cuny.edu'}],
-                   {'name': 'Transfer App', 'email': 'cvickery@qc.cuny.edu'},
-                   f'Registered Programs Update Failed on {socket.gethostname()}',
-                   f'<p>{err}</p>')
+      send_email(f'Registered Programs ({hostname})',  # from_addr
+                 ['Christopher Vickery <cvickery@qc.cuny.edu>'],  # to_addr
+                 f'Registered Programs Update Failed on {hostname}',  # subject
+                 f'<p>{err}</p>')  # html_msg
       exit(f'{__file__}: ERROR: {socket.gethostname()} {err}')
 
     # There was a web page that had a 0x1e in the middle of a string of blanks (program code 31441

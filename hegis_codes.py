@@ -7,19 +7,21 @@ import socket
 
 from datetime import datetime
 from psycopg.rows import namedtuple_row
-from sendemail import send_message
+from sendemail import send_email
 
 from AdvancedHTMLParser import AdvancedHTMLParser
+
+hostname = socket.gethostname()
 
 # Be sure the NYSED website is accessible before proceeding.
 try:
   r = requests.get('http://nysed.gov/college-university-evaluation/'
                    'new-york-state-taxonomy-academic-programs-hegis-codes').text
 except requests.exceptions.ConnectionError as err:
-  send_message([{'name': 'Christopher Vickery', 'email': 'cvickery@qc.cuny.edu'}],
-               {'name': 'Transfer App', 'email': 'cvickery@qc.cuny.edu'},
-               f'HEGIS Code Update Failed on {socket.gethostname()}',
-               f'<p>{err}</p>')
+  send_email(f'HEGIS Lookup ({hostname})',  # from_addr
+             ['Christopher Vickery <cvickery@qc.cuny.edu>'],  # to_addrs
+             f'HEGIS Code Update Failed on {hostname}',  # subject
+             f'<p>{err}</p>')  # html_msg
   exit(f'HEGIS Code Update Failed on {socket.gethostname()}: <p>{err}</p>')
 
 parser = AdvancedHTMLParser()
