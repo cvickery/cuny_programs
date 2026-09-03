@@ -1,6 +1,9 @@
 #! /usr/local/bin/python3
 """Scrape HEGIS codes from NYS Department of Education website."""
 
+import truststore
+truststore.inject_into_ssl()
+
 import psycopg
 import requests
 import socket

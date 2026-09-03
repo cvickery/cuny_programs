@@ -116,5 +116,5 @@ function restore_from_archive()
   echo End update_registered_programs.sh at "$(date)" >> ./update.log
 
   # Report this activity to the proper authority
-  "$HOME"/bin/sendemail -s "Finished Registered Programs on $(hostname)" $sysop < ./update.log
+  "$HOME"/bin/sendemail -s "Finished Registered Programs on $(hostname)" -h ./update.log $sysop
 )
