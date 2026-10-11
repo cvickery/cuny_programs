@@ -1,4 +1,4 @@
-#! /usr/local/bin/python3
+#! /usr/bin/env python3
 """
   Scrapes the NYS DOE website for registered academic programs at CUNY colleges.
 

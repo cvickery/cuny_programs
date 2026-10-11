@@ -1,4 +1,4 @@
-#! /usr/local/bin/python3
+#! /usr/bin/env python3
 """ Scrape the current list of program formats from the NYS DOE website.
     Result is the program_formats table.
 

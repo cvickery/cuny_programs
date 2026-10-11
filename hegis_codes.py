@@ -1,4 +1,4 @@
-#! /usr/local/bin/python3
+#! /usr/bin/env python3
 """Scrape HEGIS codes from NYS Department of Education website."""
 
 import truststore

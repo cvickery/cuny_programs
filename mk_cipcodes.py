@@ -1,4 +1,4 @@
-#! /usr/local/bin/python3
+#! /usr/bin/env python3
 """ Rebuild the cipcodes table from the most recent IPEDS csv file.
     TODO: this needs to be abandoned and replaced with the use of cuny_cip_code_tbl now that that
     table is being downloaded and updated weekly. But wait for that to be verified before

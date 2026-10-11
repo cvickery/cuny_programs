@@ -1,4 +1,4 @@
-#! /usr/local/bin/python3
+#! /usr/bin/env python3
 """Generate HTML/CSV files for registered_programs page."""
 import json
 import psycopg
