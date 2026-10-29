@@ -25,7 +25,7 @@ function restore_from_archive()
 }
 
 (
-  export PYTHONPATH="$HOME"/Projects/transfer_app/:"$HOME"/Projects/dgw_processor
+  export PYTHONPATH="$HOME"/Projects/transfer_app/:"$HOME"/Projects/dgw_processor:$HOME/bin
   sysop='christopher.vickery@qc.cuny.edu'
   "$HOME"/bin/sendemail -s "Start Registered Programs on $(hostname)" $sysop <<< "$(date)"
 
